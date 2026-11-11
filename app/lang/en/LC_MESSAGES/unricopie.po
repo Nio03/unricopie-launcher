@@ -1,0 +1,1050 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Totalmente jugable"
+msgstr "Fully playable"
+
+msgid "Jugable"
+msgstr "Playable"
+
+msgid "Experimental"
+msgstr "Experimental"
+
+msgid "Recompilación estática"
+msgstr "Static recompilation"
+
+msgid "Port de una decompilación"
+msgstr "Port of a decompilation"
+
+msgid "Reimplementación de fans"
+msgstr "Fan reimplementation"
+
+msgid "Capa nativa"
+msgstr "Native layer"
+
+msgid "Motor hecho para el juego"
+msgstr "Game-specific engine"
+
+msgid "Port del código fuente liberado"
+msgstr "Port of the released source code"
+
+msgid "Con {}"
+msgstr "With {}"
+
+msgid "{}, con {}"
+msgstr "{}, with {}"
+
+msgid "estable"
+msgstr "stable"
+
+msgid "sin probar"
+msgstr "untested"
+
+msgid "nightly"
+msgstr "nightly"
+
+msgid "No hace falta"
+msgstr "Not needed"
+
+msgid "La pide su propio instalador"
+msgstr "Its own installer asks for it"
+
+msgid "Comprobada: {}"
+msgstr "Verified: {}"
+
+msgid "Comprobada"
+msgstr "Verified"
+
+msgid "Guardada, sin comprobar"
+msgstr "Saved, not verified"
+
+msgid "Todavía no la elegiste"
+msgstr "You haven't chosen it yet"
+
+msgid "En cola"
+msgstr "Queued"
+
+msgid "{} de {}"
+msgstr "{} of {}"
+
+msgid "Empezando"
+msgstr "Starting"
+
+msgid "Bajado. Comprobando y descomprimiendo…"
+msgstr "Downloaded. Verifying and extracting…"
+
+msgid "Instalado y puesto en el juego."
+msgstr "Installed and added to the game."
+
+msgid "Actualizado. La versión de antes quedó guardada, con tus partidas."
+msgstr "Updated. The previous version was kept, with your saves."
+
+msgid "No se pudo actualizar: {}. Sigue la versión que tenías."
+msgstr "Couldn’t update: {}. You still have the version you had."
+
+msgid "Instalado. Ya está en tu biblioteca."
+msgstr "Installed. It's in your library now."
+
+msgid "Instalado, pero no se pudo hacer portable: {}"
+msgstr "Installed, but it couldn't be made portable: {}"
+
+msgid "No se pudo instalar: {}"
+msgstr "Couldn't install: {}"
+
+msgid "Consola"
+msgstr "Console"
+
+msgid "Estado"
+msgstr "Status"
+
+msgid "Unricopie"
+msgstr "Unricopie"
+
+msgid "Juego"
+msgstr "Game"
+
+msgid "Tipo"
+msgstr "Type"
+
+msgid "Se instala aquí"
+msgstr "Installs here"
+
+msgid "Instalados"
+msgstr "Installed"
+
+msgid "Para tus juegos"
+msgstr "For your games"
+
+msgid "Mods"
+msgstr "Mods"
+
+msgid "Bibliotecas"
+msgstr "Libraries"
+
+msgid "Paquetes de mods"
+msgstr "Modpacks"
+
+msgid "Audio"
+msgstr "Audio"
+
+msgid "Herramientas"
+msgstr "Tools"
+
+msgid "Varios"
+msgstr "Misc"
+
+msgid "Se instalan con Unricopie"
+msgstr "Install with Unricopie"
+
+msgid "Los más bajados"
+msgstr "Most downloaded"
+
+msgid "{} necesita {}, que no está instalado."
+msgstr "{} needs {}, which isn’t installed."
+
+msgid "{} necesita {} ({}), que no está instalado."
+msgstr "{} needs {} ({}), which isn’t installed."
+
+msgid "{} necesita {}, que está apagado en este perfil."
+msgstr "{} needs {}, which is turned off in this profile."
+
+msgid "{} pide {} {} y tienes la {}."
+msgstr "{} asks for {} {} and you have {}."
+
+msgid "{} y {} no pueden ir juntos: {}"
+msgstr "{} and {} can’t be used together: {}"
+
+msgid "Las reglas de orden de {} se contradicen."
+msgstr "The load order rules for {} contradict each other."
+
+msgid "{0} y {1} traen los mismos archivos (por ejemplo {2}): gana {1}, que carga después."
+msgstr "{0} and {1} bring the same files (for example {2}): {1} wins, since it loads later."
+
+msgid "Portada de {}, fondo de {}, logo de {} e icono de {}, en SteamGridDB"
+msgstr "Cover by {}, background by {}, logo by {} and icon by {}, on SteamGridDB"
+
+msgid "Portada y fondo de IGDB"
+msgstr "Cover and background from IGDB"
+
+msgid "Portada de IGDB"
+msgstr "Cover from IGDB"
+
+msgid "no se pudo usar {}: {}"
+msgstr "couldn't use {}: {}"
+
+msgid "no se pudo descomprimir {}: {}"
+msgstr "couldn't extract {}: {}"
+
+msgid "el archivo trae una ruta no permitida: {}"
+msgstr "the archive contains a path that isn't allowed: {}"
+
+msgid "lo descomprimido supera el límite de {} bytes"
+msgstr "the extracted files go over the {} byte limit"
+
+msgid "el archivo trae más de {} archivos"
+msgstr "the archive has more than {} files"
+
+msgid "la descarga no coincide: se esperaba el {} {} y llegó {}"
+msgstr "the download doesn't match: expected {} {}, got {}"
+
+msgid "enlace no válido: {}"
+msgstr "invalid link: {}"
+
+msgid "error de red en {}: {}"
+msgstr "network error at {}: {}"
+
+msgid "una respuesta no es JSON válido: {}"
+msgstr "a response isn't valid JSON: {}"
+
+msgid "la receta de este juego tiene un error. Es cosa nuestra, no tuya."
+msgstr "this game's recipe has a mistake. That's on us, not you."
+
+msgid "no hay versión para {}"
+msgstr "there's no version for {}"
+
+msgid "{} no tiene ninguna versión en el canal {}"
+msgstr "{} has no version in the {} channel"
+
+msgid "la versión {} no trae ningún archivo que encaje con «{}»"
+msgstr "release {} has no file matching “{}”"
+
+msgid "la versión {} trae varios archivos que encajan con «{}»: {}"
+msgstr "release {} has several files matching “{}”: {}"
+
+msgid "después de instalar no aparece {}"
+msgstr "{} isn't there after installing"
+
+msgid "ya hay algo instalado en {}"
+msgstr "something is already installed in {}"
+
+msgid "todavía no se sabe instalar {} ({})"
+msgstr "Unricopie can't install {} yet ({})"
+
+msgid "{} ya trae un unricopie.json"
+msgstr "{} already contains an unricopie.json"
+
+msgid "el paquete tiene una forma inesperada: {}"
+msgstr "the package has an unexpected layout: {}"
+
+msgid "no hay nada instalado en {}"
+msgstr "nothing is installed in {}"
+
+msgid "lo que hay en {} no lo instaló Unricopie"
+msgstr "what's in {} wasn't installed by Unricopie"
+
+msgid "en {} está instalado {}, que es otro juego"
+msgstr "{} has {} installed, which is a different game"
+
+msgid "ya está instalada la versión {}"
+msgstr "version {} is already installed"
+
+msgid "el juego está abierto: ciérralo antes"
+msgstr "the game is running: close it first"
+
+msgid "no hay una versión anterior «{}»"
+msgstr "there's no previous version “{}”"
+
+msgid "la receta no dice cómo hacerlo portable en {}"
+msgstr "the recipe doesn't say how to make it portable on {}"
+
+msgid "no se puede crear {}: ya hay otra cosa con ese nombre"
+msgstr "can't create {}: something else already has that name"
+
+msgid "no se pudo usar la configuración {}: {}"
+msgstr "couldn't use the settings file {}: {}"
+
+msgid "la configuración {} no está en UTF-8"
+msgstr "the settings file {} isn't UTF-8"
+
+msgid "la configuración {} no tiene la forma esperada"
+msgstr "the settings file {} doesn't have the expected shape"
+
+msgid "en la configuración {}, «{}» no es una sección"
+msgstr "in the settings file {}, “{}” isn't a section"
+
+msgid "el valor no cabe en la configuración {}"
+msgstr "the value doesn't fit in the settings file {}"
+
+msgid "no se puede abrir {}: {}"
+msgstr "can't open {}: {}"
+
+msgid "la receta no dice qué ejecutable abrir"
+msgstr "the recipe doesn't say which executable to open"
+
+msgid "abrir apps de macOS todavía no se hace"
+msgstr "opening macOS apps isn't supported yet"
+
+msgid "no está {}"
+msgstr "{} is missing"
+
+msgid "tu copia no es ninguna de las que acepta este proyecto"
+msgstr "your copy isn't any of the ones this project accepts"
+
+msgid "a tu copia le falta {}"
+msgstr "your copy is missing {}"
+
+msgid "{} no es una ROM de N64"
+msgstr "{} isn't an N64 ROM"
+
+msgid "este proyecto pide un archivo, no una carpeta"
+msgstr "this project needs a file, not a folder"
+
+msgid "este proyecto pide la carpeta del juego"
+msgstr "this project needs the game folder"
+
+msgid "los dmg solo se abren en macOS"
+msgstr "DMG files only open on macOS"
+
+msgid "{} no es un juego de la biblioteca"
+msgstr "{} isn't a game in the library"
+
+msgid "no se encuentra la carpeta de datos del sistema"
+msgstr "the system's data folder can't be found"
+
+msgid "el antivirus del sitio marcó {}"
+msgstr "the site's antivirus flagged {}"
+
+msgid "este sistema todavía no tiene versión"
+msgstr "there's no version for this system yet"
+
+msgid "{} no trae nada que el juego use como mod"
+msgstr "{} doesn’t contain anything the game uses as a mod"
+
+msgid "Está en Descargas: se baja la última release oficial, comprobando su hash."
+msgstr "It's in Downloads: the latest official release is downloaded and its hash checked."
+
+msgid "La cola de descargas no responde."
+msgstr "The download queue isn't responding."
+
+msgid "Preparando {}…"
+msgstr "Getting {} ready…"
+
+msgid "Comprobando tu copia…"
+msgstr "Checking your copy…"
+
+msgid "Tu copia está comprobada y guardada: {}."
+msgstr "Your copy is verified and saved: {}."
+
+msgid "Tu copia está comprobada y guardada."
+msgstr "Your copy is verified and saved."
+
+msgid "Tu copia está guardada. La receta no trae con qué comprobarla."
+msgstr "Your copy is saved. The recipe has nothing to verify it against."
+
+msgid "No es ninguna de las copias que acepta este proyecto. No se guardó."
+msgstr "It isn't any of the copies this project accepts. It wasn't saved."
+
+msgid "No se pudo guardar tu copia: {}"
+msgstr "Couldn't save your copy: {}"
+
+msgid "Abriendo {}."
+msgstr "Opening {}."
+
+msgid "Abriendo {}: todavía no elegiste tu copia, así que el juego te la pedirá."
+msgstr "Opening {}: you haven't chosen your copy yet, so the game will ask you for it."
+
+msgid "Abriendo {}: se volvió a apagar su actualizador."
+msgstr "Opening {}: its updater was turned off again."
+
+msgid "Abriendo {}: todavía no elegiste tu copia, así que el juego te la pedirá; y se volvió a apagar su actualizador."
+msgstr "Opening {}: you haven't chosen your copy yet, so the game will ask you for it; and its updater was turned off again."
+
+msgid "No se pudo abrir {}: {}"
+msgstr "Couldn't open {}: {}"
+
+msgid "Volviste a la versión {}. La que tenías quedó guardada en Versiones."
+msgstr "You’re back on version {}. The one you had is kept in Versions."
+
+msgid "No se pudo volver a la versión {}: {}"
+msgstr "Couldn’t go back to version {}: {}"
+
+msgid "Se borró la versión {}."
+msgstr "Version {} was deleted."
+
+msgid "No se pudo borrar la versión {}: {}"
+msgstr "Couldn’t delete version {}: {}"
+
+msgid "{} mods"
+msgstr "{} mods"
+
+msgid "Instalado"
+msgstr "Installed"
+
+msgid "Copiar"
+msgstr "Copy"
+
+msgid "Seleccionar todo"
+msgstr "Select all"
+
+msgid "Recomendado"
+msgstr "Recommended"
+
+msgid "{}, de {}"
+msgstr "{}, by {}"
+
+msgid "Hay {}"
+msgstr "{} is out"
+
+msgid "Instalada"
+msgstr "Installed"
+
+msgid "Mod de {}, de {}, desde Thunderstore"
+msgstr "Mod for {}, by {}, from Thunderstore"
+
+msgid "Abrir"
+msgstr "Open"
+
+msgid "Ver menos"
+msgstr "Show less"
+
+msgid "Ver las {} restantes"
+msgstr "Show the other {}"
+
+msgid "de {}"
+msgstr "by {}"
+
+msgid "{} descargas"
+msgstr "{} downloads"
+
+msgid "{} descargas · {}"
+msgstr "{} downloads · {}"
+
+msgid "Actualizar"
+msgstr "Update"
+
+msgid "Instalar"
+msgstr "Install"
+
+msgid "Ver el juego"
+msgstr "See the game"
+
+msgid "En Descargas"
+msgstr "In Downloads"
+
+msgid "Ver todos ›"
+msgstr "See all ›"
+
+msgid "Activar {}"
+msgstr "Turn on {}"
+
+msgid "Bajando, {} %"
+msgstr "Downloading, {}%"
+
+msgid "Bajando"
+msgstr "Downloading"
+
+msgid "Bajado. Descomprimiendo…"
+msgstr "Downloaded. Unpacking…"
+
+msgid "Trae {} variantes: elige cuál usar."
+msgstr "It comes with {} variants: choose which one to use."
+
+msgid "Biblioteca. La pide {}, así que va antes."
+msgstr "Library. {} needs it, so it loads first."
+
+msgid "Añadido a mano."
+msgstr "Added by hand."
+
+msgid "Tuyo"
+msgstr "Yours"
+
+msgid "Probado"
+msgstr "Tested"
+
+msgid "Sin probar"
+msgstr "Untested"
+
+msgid "Nueva: {}"
+msgstr "New: {}"
+
+msgid "Variantes: marca la que quieres usar. Suele ser una sola, como la de tu mando."
+msgstr "Variants: tick the one you want to use. Usually just one, like the one for your controller."
+
+msgid "Subir"
+msgstr "Move up"
+
+msgid "Bajar"
+msgstr "Move down"
+
+msgid "Actualizar a {}"
+msgstr "Update to {}"
+
+msgid "Ficha del mod"
+msgstr "Mod page"
+
+msgid "Quitar"
+msgstr "Remove"
+
+msgid "Biblioteca"
+msgstr "Library"
+
+msgid "Todavía no hay mods fichados para {}."
+msgstr "There are no mods listed for {} yet."
+
+msgid "Perfil"
+msgstr "Profile"
+
+msgid "Principal"
+msgstr "Main"
+
+msgid "Gestionar en Mods ›"
+msgstr "Manage in Mods ›"
+
+msgid "Listo"
+msgstr "Done"
+
+msgid "Cambiar de perfil"
+msgstr "Change profile"
+
+msgid "Añadir desde archivo…"
+msgstr "Add from file…"
+
+msgid "Buscar mods"
+msgstr "Find mods"
+
+msgid "Nombre del perfil"
+msgstr "Profile name"
+
+msgid "Nuevo, vacío"
+msgstr "New, empty"
+
+msgid "Perfil nuevo"
+msgstr "New profile"
+
+msgid "Copia de este"
+msgstr "Copy of this one"
+
+msgid "Renombrar este"
+msgstr "Rename this one"
+
+msgid "Borrar este"
+msgstr "Delete this one"
+
+msgid "Cada perfil recuerda qué mods están activos y qué variantes elegiste. Al cambiar de perfil, Unricopie quita del juego los mods del otro y pone los de este."
+msgstr "Each profile remembers which mods are on and which variants you chose. When you switch profiles, Unricopie takes the other profile’s mods out of the game and puts this one’s in."
+
+msgid "Leyendo tus mods…"
+msgstr "Reading your mods…"
+
+msgid "Instala el juego para ponerle mods. Mientras, puedes mirar los que hay en Thunderstore con «Buscar mods»."
+msgstr "Install the game to add mods. Meanwhile, you can browse the ones on Thunderstore with “Find mods”."
+
+msgid "Todavía no le pusiste mods. En Thunderstore hay {} para este juego: búscalos con «Buscar mods»."
+msgstr "You haven’t added any mods yet. Thunderstore has {} for this game: browse them with “Find mods”."
+
+msgid "Todavía no le pusiste mods. Búscalos en Thunderstore con «Buscar mods»."
+msgstr "You haven’t added any mods yet. Browse Thunderstore with “Find mods”."
+
+msgid "Tomamos {n} cambio que hiciste en el menú del juego (un mod apagado o el orden), para no pisarlo."
+msgid_plural "Tomamos {n} cambios que hiciste en el menú del juego (mods apagados o el orden), para no pisarlos."
+msgstr[0] "We kept {n} change you made in the game’s menu (a mod turned off or the order), so it isn’t overwritten."
+msgstr[1] "We kept {n} changes you made in the game’s menu (mods turned off or the order), so they aren’t overwritten."
+
+msgid "Añadido {n} mod tuyo."
+msgid_plural "Añadidos {n} mods tuyos."
+msgstr[0] "Added {n} of your mods."
+msgstr[1] "Added {n} of your mods."
+
+msgid "Arrastra las filas para cambiar el orden. También puedes soltar aquí archivos .nrm, .rtz, .zip o .7z para añadirlos."
+msgstr "Drag the rows to change the order. You can also drop .nrm, .rtz, .zip or .7z files here to add them."
+
+msgid "No se añadió: {}."
+msgstr "Not added: {}."
+
+msgid "No se pudieron poner los mods en el juego: {}"
+msgstr "Couldn’t add the mods to the game: {}"
+
+msgid "Instalarlo"
+msgstr "Install it"
+
+msgid "Activarlo"
+msgstr "Turn it on"
+
+msgid "Actualizarlo"
+msgstr "Update it"
+
+msgid "Que gane {}"
+msgstr "Let {} win"
+
+msgid "Que siga ganando {}"
+msgstr "Keep {} winning"
+
+msgid "Orden resuelto."
+msgstr "Load order solved."
+
+msgid "Cada biblioteca va antes del mod que la pide. Todo viene de Thunderstore y se pone en la carpeta de mods del juego con enlaces duros."
+msgstr "Each library loads before the mod that needs it. Everything comes from Thunderstore and goes into the game’s mods folder as hard links."
+
+msgid "Carpeta de mods"
+msgstr "Mods folder"
+
+msgid "Buscar entre {} mods de Thunderstore"
+msgstr "Search {} mods on Thunderstore"
+
+msgid "Buscar en Thunderstore"
+msgstr "Search Thunderstore"
+
+msgid "Volver a tus mods"
+msgstr "Back to your mods"
+
+msgid "Instala el juego para poder ponerle mods."
+msgstr "Install the game to be able to add mods."
+
+msgid "Leyendo la lista de Thunderstore…"
+msgstr "Reading the Thunderstore list…"
+
+msgid "No se pudo leer la lista de Thunderstore. ¿Hay conexión?"
+msgstr "Couldn’t read the Thunderstore list. Are you online?"
+
+msgid "Reintentar"
+msgstr "Try again"
+
+msgid "Ningún mod coincide con la búsqueda."
+msgstr "No mods match your search."
+
+msgid "Ver más"
+msgstr "Show more"
+
+msgid "Ves {} de {}. También puedes buscar por nombre o autor."
+msgstr "Showing {} of {}. You can also search by name or author."
+
+msgid "De la comunidad {} de Thunderstore, de los más bajados a los menos. Unricopie todavía no probó ninguno: por eso dicen «Sin probar» en tu lista."
+msgstr "From the {} community on Thunderstore, most downloaded first. Unricopie hasn’t tested any of them yet: that’s why they say “Untested” in your list."
+
+msgid "En uso"
+msgstr "In use"
+
+msgid "{} y {} mods más piden la versión {} o más nueva del juego."
+msgstr "{} and {} more mods need version {} or newer of the game."
+
+msgid "{} pide la versión {} o más nueva del juego."
+msgstr "{} needs version {} or newer of the game."
+
+msgid "Cambiando a esta versión…"
+msgstr "Switching to this version…"
+
+msgid "Usar esta"
+msgstr "Use this one"
+
+msgid "Borrar"
+msgstr "Delete"
+
+msgid "Se borra del disco, sin vuelta atrás."
+msgstr "It’s deleted from disk, for good."
+
+msgid "Borrarla"
+msgstr "Delete it"
+
+msgid "Cancelar"
+msgstr "Cancel"
+
+msgid "{}, {}"
+msgstr "{}, {}"
+
+msgid "‹ Explorar"
+msgstr "‹ Explore"
+
+msgid "{} · {}"
+msgstr "{} · {}"
+
+msgid "Sobre {}"
+msgstr "About {}"
+
+msgid "Opiniones"
+msgstr "Reviews"
+
+msgid "Todavía ninguna"
+msgstr "None yet"
+
+msgid "{} bien, {} con problemas, {} no arranca"
+msgstr "{} work well, {} with problems, {} don't start"
+
+msgid "Última versión"
+msgstr "Latest version"
+
+msgid "Jugar {}"
+msgstr "Play {}"
+
+msgid "Instalar {}"
+msgstr "Install {}"
+
+msgid "Recomendado · {}"
+msgstr "Recommended · {}"
+
+msgid "Por prudencia, todavía no enlazamos este proyecto: lo haremos cuando su repositorio confirme que no trae código ni datos del juego."
+msgstr "To be safe, we don’t link to this project yet: we will once its repository confirms it has no game code or data."
+
+msgid "Unricopie todavía no sabe instalar este proyecto: se baja desde su página. Sumamos juegos cada semana."
+msgstr "Unricopie can’t install this project yet: you download it from its page. We add games every week."
+
+msgid "Su receta todavía no dice qué abrir en este sistema, así que Unricopie aún no puede instalarlo."
+msgstr "Its recipe doesn’t say what to open on this system yet, so Unricopie can’t install it."
+
+msgid "Ver en la biblioteca"
+msgstr "View in library"
+
+msgid "Jugar"
+msgstr "Play"
+
+msgid "Ver en GitHub"
+msgstr "View on GitHub"
+
+msgid "{} formas de jugarlo en PC"
+msgstr "{} ways to play it on PC"
+
+msgid "Cómo jugarlo en PC"
+msgstr "How to play it on PC"
+
+msgid "La caja de arriba usa el proyecto marcado. Elige otro para ver el suyo."
+msgstr "The box above uses the selected project. Pick another to see its own."
+
+msgid "Qué necesitas"
+msgstr "What you need"
+
+msgid "Qué copia"
+msgstr "Which copy"
+
+msgid "La tuya"
+msgstr "Yours"
+
+msgid "Elegir la carpeta del juego"
+msgstr "Choose the game folder"
+
+msgid "Elegir tu copia"
+msgstr "Choose your copy"
+
+msgid "Autores"
+msgstr "Authors"
+
+msgid "Estrellas en GitHub"
+msgstr "GitHub stars"
+
+msgid "Repositorio"
+msgstr "Repository"
+
+msgid "Arte"
+msgstr "Art"
+
+msgid "No está en la lista de este juego"
+msgstr "Not in this game’s list"
+
+msgid "Leyendo…"
+msgstr "Loading…"
+
+msgid "de {} ↗"
+msgstr "by {} ↗"
+
+msgid "Mod de {}"
+msgstr "Mod for {}"
+
+msgid "Descripción"
+msgstr "Description"
+
+msgid "Necesita"
+msgstr "Requires"
+
+msgid "Lo usan"
+msgstr "Used by"
+
+msgid "Versiones"
+msgstr "Versions"
+
+msgid "Cambios"
+msgstr "Changelog"
+
+msgid "No se pudo leer su descripción completa: está en Thunderstore."
+msgstr "Couldn’t load its full description: it’s on Thunderstore."
+
+msgid "No necesita otros mods."
+msgstr "It doesn’t need other mods."
+
+msgid "Ningún otro mod lo usa."
+msgstr "No other mod uses it."
+
+msgid "Este mod no publica registro de cambios."
+msgstr "This mod doesn’t publish a changelog."
+
+msgid "Instala el juego para añadirle mods."
+msgstr "Install the game to add mods to it."
+
+msgid "Ver en Thunderstore ↗"
+msgstr "View on Thunderstore ↗"
+
+msgid "Actualizado"
+msgstr "Last updated"
+
+msgid "Subido"
+msgstr "First uploaded"
+
+msgid "Descargas"
+msgstr "Downloads"
+
+msgid "Me gusta"
+msgstr "Likes"
+
+msgid "Tamaño"
+msgstr "Size"
+
+msgid "1 mod"
+msgstr "1 mod"
+
+msgid "Categorías"
+msgstr "Categories"
+
+msgid "Los datos y la descripción vienen de Thunderstore."
+msgstr "The details and description come from Thunderstore."
+
+msgid "Tus juegos con mods"
+msgstr "Your games with mods"
+
+msgid "Cuando instales un juego que admite mods (Zelda 64: Recompiled o Banjo: Recompiled), aquí los gestionas."
+msgstr "Once you install a game that supports mods (Zelda 64: Recompiled or Banjo: Recompiled), you manage them here."
+
+msgid "Mods de {}"
+msgstr "Mods for {}"
+
+msgid "Actualizando a {}…"
+msgstr "Updating to {}…"
+
+msgid "Tu copia"
+msgstr "Your copy"
+
+msgid "Proyecto ({} de {})"
+msgstr "Project ({} of {})"
+
+msgid "Proyecto"
+msgstr "Project"
+
+msgid "¿Cómo te fue con la versión {}?"
+msgstr "How did version {} work for you?"
+
+msgid "¿La versión {} no arranca?"
+msgstr "Version {} doesn’t start?"
+
+msgid "Funciona bien"
+msgstr "Works well"
+
+msgid "Con problemas"
+msgstr "With problems"
+
+msgid "No arranca"
+msgstr "Doesn't start"
+
+msgid "Se abre un formulario en GitHub ya relleno; lo envías tú."
+msgstr "A GitHub form opens already filled in; you send it."
+
+msgid "Si funciona bien o con problemas te lo preguntamos tras una hora de juego o un día después de abrirlo. Se abre un formulario en GitHub ya relleno; lo envías tú."
+msgstr "We’ll ask whether it works well or with problems after an hour of play or a day after you first open it. A GitHub form opens already filled in; you send it."
+
+msgid "Partidas"
+msgstr "Saves"
+
+msgid "Acerca de"
+msgstr "About"
+
+msgid "Hay {} proyectos que llevan este juego a PC. Elige uno para instalarlo; el botón de arriba usa el que está marcado."
+msgstr "{} projects bring this game to PC. Pick one to install; the button above uses the one that's marked."
+
+msgid "Es el único proyecto del catálogo que lleva este juego a PC."
+msgstr "It's the only project in the catalog that brings this game to PC."
+
+msgid "Versiones de {}"
+msgstr "Versions of {}"
+
+msgid "Instalada el {}"
+msgstr "Installed on {}"
+
+msgid "Instalada el {} · guardada el {}"
+msgstr "Installed on {} · saved on {}"
+
+msgid "Al cambiar de versión, tus mods, su orden y tu perfil siguen igual: Unricopie los quita y los vuelve a poner."
+msgstr "When you switch versions, your mods, their order and your profile stay the same: Unricopie removes them and puts them back."
+
+msgid "Al actualizar, Unricopie guarda la versión de antes con tus partidas y tus ajustes, para que puedas volver a ella."
+msgstr "When it updates, Unricopie keeps the previous version with your saves and settings, so you can go back to it."
+
+msgid "Cuando lo instales, aquí verás dónde guarda las partidas."
+msgstr "Once you install it, you'll see here where it keeps its saves."
+
+msgid "Dónde guarda"
+msgstr "Where it saves"
+
+msgid "En la carpeta del juego (modo portable)"
+msgstr "In the game folder (portable mode)"
+
+msgid "Donde las guarda el juego; Unricopie no las mueve"
+msgstr "Wherever the game keeps them; Unricopie doesn't move them"
+
+msgid "Carpeta del juego"
+msgstr "Game folder"
+
+msgid "Unricopie la comprueba con los hashes de la receta y la guarda una vez en tu biblioteca. Antes de abrir el juego se la deja donde la busca."
+msgstr "Unricopie checks it against the recipe's hashes and keeps it once in your library. Before opening the game, it puts it where the game looks for it."
+
+msgid "Cómo llega a PC"
+msgstr "How it gets to PC"
+
+msgid "Juego original"
+msgstr "Original game"
+
+msgid "Explorar"
+msgstr "Explore"
+
+msgid "Ajustes"
+msgstr "Settings"
+
+msgid "Buscar en la biblioteca"
+msgstr "Search your library"
+
+msgid "Todavía no hay ninguno. Los que instales aparecerán aquí."
+msgstr "None yet. The games you install will show up here."
+
+msgid "Tus juegos"
+msgstr "Your games"
+
+msgid "{n} instalado"
+msgid_plural "{n} instalados"
+msgstr[0] "{n} installed"
+msgstr[1] "{n} installed"
+
+msgid "Ordenar"
+msgstr "Sort by"
+
+msgid "Instalado hace poco"
+msgstr "Recently installed"
+
+msgid "Nombre"
+msgstr "Name"
+
+msgid "Todavía no has instalado ningún juego. En Explorar está el catálogo: {} juegos, {} ya se pueden instalar en este equipo."
+msgstr "You haven't installed any games yet. The catalog is in Explore: {} games, {} can already be installed on this computer."
+
+msgid "Ir a Explorar"
+msgstr "Go to Explore"
+
+msgid "Explorar mods"
+msgstr "Explore mods"
+
+msgid "Explorar el catálogo"
+msgstr "Explore the catalog"
+
+msgid "{} mods de Thunderstore para {} juegos. Sumamos juegos cada semana."
+msgstr "{} mods from Thunderstore for {} games. We add games every week."
+
+msgid "{} juegos en el catálogo de Recompendium; {} ya se pueden instalar en este equipo"
+msgstr "{} games in the Recompendium catalog; {} can already be installed on this computer"
+
+msgid "Buscar en el catálogo"
+msgstr "Search the catalog"
+
+msgid "Juegos"
+msgstr "Games"
+
+msgid "Leyendo las listas de Thunderstore…"
+msgstr "Reading the Thunderstore lists…"
+
+msgid "Filtros"
+msgstr "Filters"
+
+msgid "Quitar filtros"
+msgstr "Clear filters"
+
+msgid "{n} mod"
+msgid_plural "{n} mods"
+msgstr[0] "{n} mod"
+msgstr[1] "{n} mods"
+
+msgid "{n} juego"
+msgid_plural "{n} juegos"
+msgstr[0] "{n} game"
+msgstr[1] "{n} games"
+
+msgid "Más bajados"
+msgstr "Most downloaded"
+
+msgid "Recién actualizados"
+msgstr "Recently updated"
+
+msgid "Más jugables"
+msgstr "Most playable"
+
+msgid "Más nuevos"
+msgstr "Newest"
+
+msgid "Más viejos"
+msgstr "Oldest"
+
+msgid "Nada coincide con los filtros. Prueba a quitar alguno."
+msgstr "Nothing matches the filters. Try removing one."
+
+msgid "Para ponerle mods a un juego, primero instálalo. Los perfiles, el orden y las variantes de cada mod se manejan en la pestaña Mods del juego."
+msgstr "To add mods to a game, install it first. Profiles, load order and each mod’s variants are managed in the game’s Mods tab."
+
+msgid "No hay descargas. Cuando instales un juego, aquí verás cómo va: la descarga, la comprobación del hash y la descompresión."
+msgstr "No downloads. When you install a game, you'll see its progress here: the download, the hash check and the extraction."
+
+msgid "Idioma"
+msgstr "Language"
+
+msgid "Tema"
+msgstr "Theme"
+
+msgid "Noche"
+msgstr "Night"
+
+msgid "Día"
+msgstr "Day"
+
+msgid "Alto contraste"
+msgstr "High contrast"
+
+msgid "Carpeta"
+msgstr "Folder"
+
+msgid "Modo"
+msgstr "Mode"
+
+msgid "Portable: hay un portable.txt junto al launcher, así que todo se guarda a su lado."
+msgstr "Portable: there's a portable.txt next to the launcher, so everything is kept beside it."
+
+msgid "Normal, en la carpeta de datos del sistema. Con un portable.txt junto al launcher, todo se guardaría a su lado."
+msgstr "Normal, in the system's data folder. With a portable.txt next to the launcher, everything would be kept beside it."
+
+msgid "Versión"
+msgstr "Version"
+
+msgid "Hay una nueva"
+msgstr "New version"
+
+msgid "Unricopie {} ya está disponible"
+msgstr "Unricopie {} is out"
+
+msgid "Volver al juego"
+msgstr "Back to the game"
+
+msgid "Bajando {}"
+msgstr "Downloading {}"
+
+msgid "{} en cola"
+msgstr "{} queued"
+
+msgid "Nada bajando"
+msgstr "Nothing downloading"
+
+msgid "Catálogo: {} juegos, {} proyectos"
+msgstr "Catalog: {} games, {} projects"
+
+msgid "Sin catálogo (falta UNRICOPIE_CATALOGO)"
+msgstr "No catalog (UNRICOPIE_CATALOGO is missing)"
+
+msgid "No se pudo leer el catálogo"
+msgstr "Couldn't read the catalog"
+
+msgid "Suelta para añadirlo a los mods de {}"
+msgstr "Drop to add it to the mods for {}"
+
+msgid "Para añadir mods, abre la pestaña Mods de un juego instalado y suéltalos ahí."
+msgstr "To add mods, open the Mods tab of an installed game and drop them there."

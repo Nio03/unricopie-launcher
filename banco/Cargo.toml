@@ -1,0 +1,12 @@
+[package]
+name = "unricopie-banco"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+description = "El banco de pruebas de Unricopie: instala cada receta aparte, comprueba la copia y abre el juego."
+
+[dependencies]
+unricopie-nucleo = { path = "../nucleo" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

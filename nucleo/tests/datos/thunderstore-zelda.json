@@ -1,0 +1,234 @@
+[
+ {
+  "name": "Modern_Controller_Overhaul",
+  "full_name": "tomtee-Modern_Controller_Overhaul",
+  "owner": "tomtee",
+  "package_url": "https://thunderstore.io/c/zelda-64-recompiled/p/tomtee/Modern_Controller_Overhaul/",
+  "date_updated": "2026-06-22T16:41:09.278076Z",
+  "is_deprecated": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "Modern_Controller_Overhaul",
+    "full_name": "tomtee-Modern_Controller_Overhaul-4.0.3",
+    "version_number": "4.0.3",
+    "dependencies": [
+     "LT_Schmiddy-EZ_Text_Replacer_API-2.3.0",
+     "tomtee-Interface_Helper-1.1.0"
+    ],
+    "download_url": "https://thunderstore.io/package/download/tomtee/Modern_Controller_Overhaul/4.0.3/",
+    "file_size": 2851356,
+    "date_created": "2026-06-22T16:41:08.506705Z",
+    "downloads": 3965,
+    "is_active": true
+   },
+   {
+    "name": "Modern_Controller_Overhaul",
+    "full_name": "tomtee-Modern_Controller_Overhaul-4.0.2",
+    "version_number": "4.0.2",
+    "dependencies": [
+     "LT_Schmiddy-EZ_Text_Replacer_API-2.3.0",
+     "tomtee-Interface_Helper-1.1.0"
+    ],
+    "download_url": "https://thunderstore.io/package/download/tomtee/Modern_Controller_Overhaul/4.0.2/",
+    "file_size": 2851165,
+    "date_created": "2025-10-18T10:06:35.622234Z",
+    "downloads": 9312,
+    "is_active": true
+   }
+  ]
+ },
+ {
+  "name": "Interface_Helper",
+  "full_name": "tomtee-Interface_Helper",
+  "owner": "tomtee",
+  "package_url": "https://thunderstore.io/c/zelda-64-recompiled/p/tomtee/Interface_Helper/",
+  "date_updated": "2025-10-18T10:02:38.691876Z",
+  "is_deprecated": false,
+  "categories": [
+   "Libraries"
+  ],
+  "versions": [
+   {
+    "name": "Interface_Helper",
+    "full_name": "tomtee-Interface_Helper-1.1.0",
+    "version_number": "1.1.0",
+    "dependencies": [],
+    "download_url": "https://thunderstore.io/package/download/tomtee/Interface_Helper/1.1.0/",
+    "file_size": 459917,
+    "date_created": "2025-10-18T10:02:38.339905Z",
+    "downloads": 12322,
+    "is_active": true
+   },
+   {
+    "name": "Interface_Helper",
+    "full_name": "tomtee-Interface_Helper-1.0.0",
+    "version_number": "1.0.0",
+    "dependencies": [],
+    "download_url": "https://thunderstore.io/package/download/tomtee/Interface_Helper/1.0.0/",
+    "file_size": 459412,
+    "date_created": "2025-07-24T10:35:17.646891Z",
+    "downloads": 1423,
+    "is_active": true
+   }
+  ]
+ },
+ {
+  "name": "EZ_Text_Replacer_API",
+  "full_name": "LT_Schmiddy-EZ_Text_Replacer_API",
+  "owner": "LT_Schmiddy",
+  "package_url": "https://thunderstore.io/c/zelda-64-recompiled/p/LT_Schmiddy/EZ_Text_Replacer_API/",
+  "date_updated": "2025-07-03T22:35:26.796208Z",
+  "is_deprecated": false,
+  "categories": [
+   "Mods",
+   "Libraries"
+  ],
+  "versions": [
+   {
+    "name": "EZ_Text_Replacer_API",
+    "full_name": "LT_Schmiddy-EZ_Text_Replacer_API-2.3.0",
+    "version_number": "2.3.0",
+    "dependencies": [],
+    "download_url": "https://thunderstore.io/package/download/LT_Schmiddy/EZ_Text_Replacer_API/2.3.0/",
+    "file_size": 293378,
+    "date_created": "2025-07-03T22:35:26.168708Z",
+    "downloads": 20854,
+    "is_active": true
+   },
+   {
+    "name": "EZ_Text_Replacer_API",
+    "full_name": "LT_Schmiddy-EZ_Text_Replacer_API-2.2.0",
+    "version_number": "2.2.0",
+    "dependencies": [],
+    "download_url": "https://thunderstore.io/package/download/LT_Schmiddy/EZ_Text_Replacer_API/2.2.0/",
+    "file_size": 292151,
+    "date_created": "2025-06-22T01:20:22.807514Z",
+    "downloads": 719,
+    "is_active": true
+   }
+  ]
+ },
+ {
+  "name": "Message_Hooks",
+  "full_name": "danielryb-Message_Hooks",
+  "owner": "danielryb",
+  "package_url": "https://thunderstore.io/c/zelda-64-recompiled/p/danielryb/Message_Hooks/",
+  "date_updated": "2025-06-10T18:04:33.374453Z",
+  "is_deprecated": false,
+  "categories": [
+   "Libraries"
+  ],
+  "versions": [
+   {
+    "name": "Message_Hooks",
+    "full_name": "danielryb-Message_Hooks-2.0.0",
+    "version_number": "2.0.0",
+    "dependencies": [],
+    "download_url": "https://thunderstore.io/package/download/danielryb/Message_Hooks/2.0.0/",
+    "file_size": 128844,
+    "date_created": "2025-06-10T18:04:32.671103Z",
+    "downloads": 13303,
+    "is_active": true
+   },
+   {
+    "name": "Message_Hooks",
+    "full_name": "danielryb-Message_Hooks-1.0.0",
+    "version_number": "1.0.0",
+    "dependencies": [],
+    "download_url": "https://thunderstore.io/package/download/danielryb/Message_Hooks/1.0.0/",
+    "file_size": 124724,
+    "date_created": "2025-05-04T00:12:12.668199Z",
+    "downloads": 5778,
+    "is_active": true
+   }
+  ]
+ },
+ {
+  "name": "MMN64HD",
+  "full_name": "Nerrel-MMN64HD",
+  "owner": "Nerrel",
+  "package_url": "https://thunderstore.io/c/zelda-64-recompiled/p/Nerrel/MMN64HD/",
+  "date_updated": "2025-05-04T13:22:28.907990Z",
+  "is_deprecated": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "MMN64HD",
+    "full_name": "Nerrel-MMN64HD-1.2.1",
+    "version_number": "1.2.1",
+    "dependencies": [],
+    "download_url": "https://thunderstore.io/package/download/Nerrel/MMN64HD/1.2.1/",
+    "file_size": 3503966781,
+    "date_created": "2025-05-04T13:21:47.440079Z",
+    "downloads": 45431,
+    "is_active": true
+   },
+   {
+    "name": "MMN64HD",
+    "full_name": "Nerrel-MMN64HD-1.2.0",
+    "version_number": "1.2.0",
+    "dependencies": [],
+    "download_url": "https://thunderstore.io/package/download/Nerrel/MMN64HD/1.2.0/",
+    "file_size": 3503966600,
+    "date_created": "2025-05-04T12:38:52.897371Z",
+    "downloads": 188,
+    "is_active": true
+   }
+  ]
+ },
+ {
+  "name": "Camera_Fixes",
+  "full_name": "danielryb-Camera_Fixes",
+  "owner": "danielryb",
+  "package_url": "https://thunderstore.io/c/zelda-64-recompiled/p/danielryb/Camera_Fixes/",
+  "date_updated": "2025-05-04T00:42:58.545573Z",
+  "is_deprecated": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "Camera_Fixes",
+    "full_name": "danielryb-Camera_Fixes-1.0.0",
+    "version_number": "1.0.0",
+    "dependencies": [],
+    "download_url": "https://thunderstore.io/package/download/danielryb/Camera_Fixes/1.0.0/",
+    "file_size": 269646,
+    "date_created": "2025-05-04T00:42:58.057871Z",
+    "downloads": 16402,
+    "is_active": true
+   }
+  ]
+ },
+ {
+  "name": "Better_Song_of_Double_Time",
+  "full_name": "danielryb-Better_Song_of_Double_Time",
+  "owner": "danielryb",
+  "package_url": "https://thunderstore.io/c/zelda-64-recompiled/p/danielryb/Better_Song_of_Double_Time/",
+  "date_updated": "2025-05-04T00:15:12.495014Z",
+  "is_deprecated": false,
+  "categories": [
+   "Mods"
+  ],
+  "versions": [
+   {
+    "name": "Better_Song_of_Double_Time",
+    "full_name": "danielryb-Better_Song_of_Double_Time-1.0.0",
+    "version_number": "1.0.0",
+    "dependencies": [
+     "danielryb-Message_Hooks-1.0.0"
+    ],
+    "download_url": "https://thunderstore.io/package/download/danielryb/Better_Song_of_Double_Time/1.0.0/",
+    "file_size": 380841,
+    "date_created": "2025-05-04T00:15:12.045729Z",
+    "downloads": 18989,
+    "is_active": true
+   }
+  ]
+ }
+]

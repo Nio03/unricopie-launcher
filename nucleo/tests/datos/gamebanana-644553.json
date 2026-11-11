@@ -1,0 +1,152 @@
+{
+ "_idRow": 644553,
+ "_sName": "3DS Link",
+ "_sVersion": "3.0 + 1.0",
+ "_sProfileUrl": "https://gamebanana.com/mods/644553",
+ "_bIsObsolete": false,
+ "_bIsTrashed": false,
+ "_bIsWithheld": false,
+ "_tsDateUpdated": 1787010278,
+ "_aGame": {
+  "_idRow": 20371,
+  "_sName": "2Ship2Harkinian (Majora's Mask PC Port)",
+  "_sAbbreviation": "2ship",
+  "_sProfileUrl": "https://gamebanana.com/games/20371",
+  "_sIconUrl": "https://images.gamebanana.com/img/ico/games/6653d4fc50793.png",
+  "_sBannerUrl": "https://images.gamebanana.com/img/ico/games/6653d4fc50793.png",
+  "_nSubscriberCount": 1478,
+  "_bHasSubmissionQueue": false,
+  "_bAccessorIsSubscribed": false
+ },
+ "_aSubmitter": {
+  "_idRow": 3366933,
+  "_sName": "BeefyMcWhatnow0",
+  "_sProfileUrl": "https://gamebanana.com/members/3366933"
+ },
+ "_aFiles": [
+  {
+   "_idRow": 1788174,
+   "_sFile": "3ds_link_-_standard_8f779.zip",
+   "_nFilesize": 40532698,
+   "_tsDateAdded": 1787019132,
+   "_nDownloadCount": 4559,
+   "_sDownloadUrl": "https://gamebanana.com/dl/1788174",
+   "_sMd5Checksum": "b818c2e204f5e512e0e427e94f631a52",
+   "_sAnalysisState": "done",
+   "_sAnalysisResult": "ok",
+   "_sAnalysisResultVerbose": "File passed preliminary analysis",
+   "_sAvState": "done",
+   "_sAvResult": "clean",
+   "_bIsArchived": false,
+   "_bHasContents": true,
+   "_sVersion": "3.0.1",
+   "_sDescription": "Update - 8/17/2026 - Hotfix",
+   "_aModManagerIntegrations": [
+    {
+     "_idToolRow": 16326,
+     "_aGameRowIds": [
+      20371,
+      21612,
+      16121,
+      24131,
+      22970
+     ],
+     "_sModManagerAlias": "Shiploader",
+     "_sInstallerName": "Shiploader",
+     "_idSubmitterRow": 1598745,
+     "_sInstallerUrl": "https://gamebanana.com/tools/16326",
+     "_sIconUrl": "https://images.gamebanana.com/img/ico/tools/65e1a2c960c88.png",
+     "_sDownloadUrl": "twoshiptwoharkinian://https://gamebanana.com/mmdl/1788174,Mod,644553"
+    }
+   ]
+  },
+  {
+   "_idRow": 1788173,
+   "_sFile": "3ds_link_-_custom_colors_5604f.zip",
+   "_nFilesize": 38542845,
+   "_tsDateAdded": 1787019131,
+   "_nDownloadCount": 1669,
+   "_sDownloadUrl": "https://gamebanana.com/dl/1788173",
+   "_sMd5Checksum": "360c8b0be7449cda542f25804f791235",
+   "_sAnalysisState": "done",
+   "_sAnalysisResult": "ok",
+   "_sAnalysisResultVerbose": "File passed preliminary analysis",
+   "_sAvState": "done",
+   "_sAvResult": "clean",
+   "_bIsArchived": false,
+   "_bHasContents": true,
+   "_sVersion": "1.0.1",
+   "_sDescription": "Release - Hotfix",
+   "_aModManagerIntegrations": [
+    {
+     "_idToolRow": 16326,
+     "_aGameRowIds": [
+      20371,
+      21612,
+      16121,
+      24131,
+      22970
+     ],
+     "_sModManagerAlias": "Shiploader",
+     "_sInstallerName": "Shiploader",
+     "_idSubmitterRow": 1598745,
+     "_sInstallerUrl": "https://gamebanana.com/tools/16326",
+     "_sIconUrl": "https://images.gamebanana.com/img/ico/tools/65e1a2c960c88.png",
+     "_sDownloadUrl": "twoshiptwoharkinian://https://gamebanana.com/mmdl/1788173,Mod,644553"
+    }
+   ]
+  },
+  {
+   "_idRow": 1630255,
+   "_sFile": "3ds_equipment_cd0b5.zip",
+   "_nFilesize": 2758245,
+   "_tsDateAdded": 1771614701,
+   "_nDownloadCount": 11333,
+   "_sDownloadUrl": "https://gamebanana.com/dl/1630255",
+   "_sMd5Checksum": "95baf981cd19bc0013c07d107ddb99a5",
+   "_sAnalysisState": "done",
+   "_sAnalysisResult": "ok",
+   "_sAnalysisResultVerbose": "File passed preliminary analysis",
+   "_sAvState": "done",
+   "_sAvResult": "clean",
+   "_bIsArchived": false,
+   "_bHasContents": true,
+   "_sVersion": "1.1",
+   "_sDescription": "Bug fix - 2/20/2026",
+   "_aModManagerIntegrations": [
+    {
+     "_idToolRow": 16326,
+     "_aGameRowIds": [
+      20371,
+      21612,
+      16121,
+      24131,
+      22970
+     ],
+     "_sModManagerAlias": "Shiploader",
+     "_sInstallerName": "Shiploader",
+     "_idSubmitterRow": 1598745,
+     "_sInstallerUrl": "https://gamebanana.com/tools/16326",
+     "_sIconUrl": "https://images.gamebanana.com/img/ico/tools/65e1a2c960c88.png",
+     "_sDownloadUrl": "twoshiptwoharkinian://https://gamebanana.com/mmdl/1630255,Mod,644553"
+    }
+   ]
+  }
+ ],
+ "_aLicenseChecklist": {
+  "yes": [
+   "Download and install this Mod"
+  ],
+  "ask": [
+   "Redistribute this Mod on other sites",
+   "Modify this Mod and distribute the modified Mod on GameBanana",
+   "Modify this Mod and distribute the modified Mod on another site",
+   "Use parts of this Mod in another Mod and distribute the Mod on GameBanana",
+   "Use parts of this Mod in another Mod and distribute the Mod on another site",
+   "Use this Mod or components of this Mod in adult/NSFW content"
+  ],
+  "no": [
+   "Use this Mod or components of this Mod commercially"
+  ]
+ }
+}

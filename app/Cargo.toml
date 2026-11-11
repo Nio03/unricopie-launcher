@@ -1,0 +1,33 @@
+[package]
+name = "unricopie"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+description = "Unricopie: el launcher de Recompendium. La interfaz, en Slint, sobre el núcleo."
+
+[dependencies]
+unricopie-nucleo = { path = "../nucleo" }
+# unstable-winit-030: para recibir los archivos que se sueltan en la ventana (Slint 1.18 no los
+# pasa a DropArea). Es API inestable: se fija la versión menor.
+slint = { version = "~1.18", features = ["unstable-winit-030"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = "2"
+# El diálogo del sistema para elegir tu copia (un archivo o la carpeta del juego).
+rfd = "0.15"
+# El idioma del sistema, para elegir el de la ventana la primera vez.
+sys-locale = "0.3"
+# Abrir GitHub y las carpetas con lo del sistema (ShellExecute en Windows).
+open = "5"
+# PNG para el modo captura (UNRICOPIE_CAPTURA) y WebP para las portadas del sitio: Slint usa
+# este mismo crate y, por la unión de features de Cargo, también lee WebP.
+image = { version = "0.25", default-features = false, features = ["png", "webp"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[build-dependencies]
+slint-build = "1"
+# El icono y los datos de versión del .exe en Windows (los compila rc.exe).
+embed-resource = "3"

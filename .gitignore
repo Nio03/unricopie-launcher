@@ -1,0 +1,7 @@
+# Lo que se genera al compilar (también el de los prototipos).
+target/
+# Entornos y cachés de Python de los prototipos.
+.venv/
+__pycache__/
+# Los paquetes que arma scripts/empaquetar.py.
+paquetes/

@@ -1,0 +1,37 @@
+// Los tres temas del diseño v3 (aprobado el 1-11): Noche, Día y Alto contraste. El fondo es el
+// azul del plato del pastel y el dorado de la masa es la acción (Jugar, Instalar). El color solo
+// tiene significado: verde estable, ámbar sin probar, violeta nightly, y el de cada consola.
+
+export enum Tema { noche, dia, contraste }
+
+export global Paleta {
+    in-out property <Tema> tema: Tema.noche;
+
+    out property <color> side: tema == Tema.dia ? #e4eaf9 : tema == Tema.contraste ? #000000 : #0c1229;
+    out property <color> bg: tema == Tema.dia ? #f5f7fe : tema == Tema.contraste ? #000000 : #111a36;
+    out property <color> panel: tema == Tema.dia ? #ffffff : tema == Tema.contraste ? #000000 : #18234a;
+    out property <color> panel-2: tema == Tema.dia ? #e8edfb : tema == Tema.contraste ? #1c1c1c : #223060;
+    out property <color> line: tema == Tema.dia ? #d0d9f0 : tema == Tema.contraste ? #ffffff : #263463;
+    out property <color> fg: tema == Tema.dia ? #121a36 : tema == Tema.contraste ? #ffffff : #f4f1e8;
+    out property <color> fg-2: tema == Tema.dia ? #3a4573 : tema == Tema.contraste ? #ffffff : #b9c3e6;
+    out property <color> fg-3: tema == Tema.dia ? #636e9c : tema == Tema.contraste ? #e4e4e4 : #8390bf;
+    out property <color> gold: tema == Tema.dia ? #eaa53a : tema == Tema.contraste ? #ffcc33 : #f2b54e;
+    out property <color> gold-hi: tema == Tema.dia ? #f2b452 : tema == Tema.contraste ? #ffe07a : #f7c66b;
+    // Texto que se ilumina al pasar el ratón (enlaces, títulos de las cajas): dorado claro, y un
+    // ámbar oscuro en Día, que sobre blanco el dorado no se lee.
+    out property <color> resalte: tema == Tema.dia ? #9a5800 : tema == Tema.contraste ? #ffe07a : #f7c66b;
+    out property <color> gold-ink: tema == Tema.contraste ? #000000 : #2b1a03;
+    out property <color> ok: tema == Tema.dia ? #1d8a4b : tema == Tema.contraste ? #5dff8a : #4cc27a;
+    out property <color> warn: tema == Tema.dia ? #a96400 : tema == Tema.contraste ? #ffc400 : #f2a93b;
+    out property <color> night: tema == Tema.dia ? #7449cc : tema == Tema.contraste ? #d4b3ff : #b28cf5;
+    out property <color> bad: tema == Tema.dia ? #c62828 : tema == Tema.contraste ? #ff8080 : #ff7a7a;
+    out property <length> bw: tema == Tema.contraste ? 2px : 1px;
+}
+
+// Tamaños de letra del diseño (base 15 px).
+export global Letra {
+    out property <length> base: 15px;
+    out property <length> pequena: 12.5px;
+    out property <length> nota: 13px;
+    out property <length> titulo: 17px;
+}

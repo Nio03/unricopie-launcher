@@ -1,0 +1,6 @@
+# Espacio de trabajo de Unricopie: el núcleo (sin interfaz), la app en Slint y el banco de pruebas. Los
+# prototipos de interfaz viven aparte en prototipos/ y no forman parte de él.
+[workspace]
+resolver = "2"
+members = ["nucleo", "app", "banco"]
+exclude = ["prototipos"]
