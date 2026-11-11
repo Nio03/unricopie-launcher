@@ -6,6 +6,8 @@ Unricopie is the launcher of [Recompendium](https://recompendium.com/), the cata
 
 Unricopie never ships games or builds its own versions of the projects. Every project needs your own legal copy of the game; Unricopie checks it against the versions each project asks for and puts it where the game looks for it.
 
+![Exploring the catalogue in Unricopie](docs/screenshots/explore.jpg)
+
 ## What it does (0.1)
 
 - **Installs from the source.** Downloads each project from the release its author publishes on GitHub and checks the download against GitHub's checksum.
@@ -14,6 +16,12 @@ Unricopie never ships games or builds its own versions of the projects. Every pr
 - **The whole catalogue.** Explore shows every catalogue project with console filters: the ones Unricopie installs, with their button, and the rest, with a link to the project.
 - **Thunderstore mods** for Zelda 64: Recompiled and Banjo: Recompiled: installed with their dependencies, in profiles, with load order by drag and drop, conflict handling (pick which mod wins), your own mods dropped on the window, and each profile's mod settings, including the ones you change inside the game.
 - **Portable.** With an empty `portable.txt` next to `unricopie.exe`, everything lives in that folder: the launcher, the games, the saves, and the settings.
+
+## Screenshots
+
+| A game's page | A mod's page |
+|---|---|
+| ![The page of The Legend of Zelda: Majora's Mask, with its two ways to play it on PC](docs/screenshots/game-page.jpg) | ![The page of the Modern Controller Overhaul mod, with its description from Thunderstore](docs/screenshots/mod-page.jpg) |
 
 ## Requirements
 
