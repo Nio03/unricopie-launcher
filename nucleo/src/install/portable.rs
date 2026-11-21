@@ -286,7 +286,7 @@ pub(crate) mod tests {
         let z = t.join("bajado.zip");
         zip_with(&z, &[("Zelda64Recompiled.exe", b"exe"), ("cfg/otro.json", b"{}")]);
         let plan = fake_plan(&lib, Some("Zelda64Recompiled.exe"));
-        install_downloaded(&lib, &plan, &z, &Downloaded { size: 3, sha256: "x".into() }).unwrap();
+        install_downloaded(&lib, &plan, &z, &Downloaded { size: 3, sha256: "x".into(), scan: None }).unwrap();
         plan.dest
     }
 
@@ -348,7 +348,7 @@ pub(crate) mod tests {
         v2.version = "v2.0.0".into();
         v2.size = None;
 
-        let up = update_downloaded(&lib, &v2, &z2, &Downloaded { size: 1, sha256: "y".into() }).unwrap();
+        let up = update_downloaded(&lib, &v2, &z2, &Downloaded { size: 1, sha256: "y".into(), scan: None }).unwrap();
         assert_eq!(fs::read(d.join("juego_portable.ini")).unwrap(), b"volumen=3");
         assert!(d.join("Support").is_dir(), "una carpeta vacía también pasa a la versión nueva");
         let placed: Vec<&str> = up.receipt.portable.as_ref().unwrap().placed.iter().map(|p| p.path.as_str()).collect();

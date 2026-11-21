@@ -10,6 +10,7 @@ use std::time::Duration;
 use md5::Md5;
 use sha2::{Digest, Sha256};
 
+use crate::antivirus::Scan;
 use crate::{Error, Result};
 
 /// Así se presenta Unricopie ante los sitios (Nexus exige un nombre y versión constantes).
@@ -47,6 +48,9 @@ pub struct Downloaded {
     pub size: u64,
     /// SHA-256 calculado mientras se bajaba, siempre: va al recibo de instalación.
     pub sha256: String,
+    /// Cómo fue el análisis del antivirus del equipo, que también va al recibo. `None` si nadie
+    /// lo pidió: `download` solo baja, y lo analiza quien instala (`install::installer::fetch`).
+    pub scan: Option<Scan>,
 }
 
 /// Baja `url` a `dest`, sin pasar de `max_bytes`, y comprueba `expected` si hay. `progress`
@@ -105,7 +109,7 @@ pub fn download(
             }
             _ => {}
         }
-        Ok(Downloaded { size, sha256 })
+        Ok(Downloaded { size, sha256, scan: None })
     })();
     match result {
         Ok(d) => {

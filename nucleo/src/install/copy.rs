@@ -78,6 +78,17 @@ impl Hasher {
 /// Calcula de una pasada los hashes de `algos`, leyendo el archivo donde está. `progress` recibe
 /// los bytes leídos.
 pub fn hash_copy(path: &Path, algos: &[HashAlgo], progress: &mut dyn FnMut(u64)) -> Result<Hashes> {
+    let hashes = hash_copy_while(path, algos, &mut |done| {
+        progress(done);
+        true
+    })?;
+    Ok(hashes.expect("nadie lo corta"))
+}
+
+/// `hash_copy` que se puede cortar: `go_on` recibe los bytes leídos y dice si se sigue. Si dice
+/// que no, se deja de leer y devuelve `None` (buscar copias en una carpeta, `scan`, se cancela
+/// también a mitad de una ISO).
+pub fn hash_copy_while(path: &Path, algos: &[HashAlgo], go_on: &mut dyn FnMut(u64) -> bool) -> Result<Option<Hashes>> {
     let mut f = File::open(path).map_err(|e| Error::io(path, e))?;
     let mut h = Hasher::new(algos);
     let mut buf = vec![0u8; 1 << 20];
@@ -89,9 +100,11 @@ pub fn hash_copy(path: &Path, algos: &[HashAlgo], progress: &mut dyn FnMut(u64))
         }
         h.update(&buf[..n]);
         done += n as u64;
-        progress(done);
+        if !go_on(done) {
+            return Ok(None);
+        }
     }
-    Ok(h.finish())
+    Ok(Some(h.finish()))
 }
 
 /// Lo mismo que `hash_copy` con los bytes ya en memoria (una ROM convertida).
@@ -189,7 +202,7 @@ pub const COPY_MANIFEST: &str = "unricopie-copia.json";
 /// Dentro de `copies/<juego>/`, la carpeta de una copia que es una carpeta.
 const FOLDER: &str = "copia";
 /// Una ROM convertida se lee entera: más que esto no es una ROM.
-const MAX_ROM: u64 = 512 << 20;
+pub(crate) const MAX_ROM: u64 = 512 << 20;
 
 /// Una copia guardada en la biblioteca.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -409,7 +422,7 @@ pub fn n64_to_z64(mut data: Vec<u8>) -> Option<Vec<u8>> {
         [0x37, 0x80, 0x40, 0x12] => 1,
         _ => return None,
     };
-    for word in data.chunks_exact_mut(4) {
+    for word in data.as_chunks_mut::<4>().0 {
         let w = [word[0], word[1], word[2], word[3]];
         for (i, b) in w.into_iter().enumerate() {
             word[i ^ swap] = b;

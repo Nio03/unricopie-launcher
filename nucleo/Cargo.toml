@@ -28,6 +28,8 @@ dirs = "6"
 # 7z y xz en Rust puro, sin cifrado ni los métodos raros: solo LZMA, LZMA2 y sus filtros.
 sevenz-rust2 = { version = "0.24", default-features = false }
 lzma-rust2 = { version = "0.23", default-features = false, features = ["std", "optimization", "xz"] }
+# Espacio libre en un disco, sin unsafe nuestro (statvfs con rustix en Unix, GetDiskFreeSpaceExW en Windows).
+fs4 = { version = "1", default-features = false }
 
 [dev-dependencies]
 tempfile = "3"

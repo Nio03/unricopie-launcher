@@ -86,5 +86,21 @@ pub fn de(e: &Error) -> Datos {
         Error::Flagged { url } => d(45, url.as_str(), "", ""),
         Error::UnknownSystem => d(46, "", "", ""),
         Error::NotAMod(x) => d(47, x.as_str(), "", ""),
+        // `b` es la orden que las instala; vacía si no se conoce el paquete de ninguna.
+        Error::MissingLibraries { libs, hint, .. } => d(48, libs.join(", "), hint.as_str(), ""),
+        Error::NoSuchRelease { repo, tag } => d(49, repo.as_str(), tag.as_str(), ""),
+        // `a` son las DLL y `b`, de dónde se baja el instalador de Microsoft que las trae.
+        Error::MissingRuntime { libs, url, .. } => d(50, libs.join(", "), url.as_str(), ""),
+        Error::MissingVulkan { .. } => d(51, "", "", ""),
+        // `a` es lo que hace falta y `b` lo que hay, en MB enteros (lo que falta hacia arriba y lo
+        // que hay hacia abajo; sin decimales, que se escriben distinto en cada idioma); `c`, la carpeta.
+        Error::NoSpace { path, needed, free } => d(52, needed.div_ceil(1 << 20).to_string(), (free >> 20).to_string(), p(path)),
+        // `a` es el archivo bajado y `b` el nombre de la amenaza; vacío si el antivirus no lo dijo.
+        Error::Threat { file, threat } => d(53, file.as_str(), threat.as_str(), ""),
+        // Añadir a mano: `a` es lo que escribió la persona.
+        Error::BadRepo(texto) => d(54, texto.as_str(), "", ""),
+        Error::NoSuchRepo(repo) => d(56, repo.as_str(), "", ""),
+        // `a` son los programas que hay; vacío si no hay ninguno.
+        Error::ChooseRun { candidates } => d(55, candidates.join(", "), "", ""),
     }
 }

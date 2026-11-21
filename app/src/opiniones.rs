@@ -6,6 +6,7 @@
 //!   versión, el sistema y la tarjeta gráfica. La persona lo lee, añade su comentario y lo envía;
 //!   Unricopie no publica nada por su cuenta.
 use std::collections::HashMap;
+#[cfg(windows)]
 use std::process::Command;
 
 use serde::Deserialize;
@@ -65,6 +66,8 @@ fn cod(s: &str) -> String {
     out
 }
 
+/// Lo que escribe una orden del sistema. Solo se le pregunta a Windows.
+#[cfg(windows)]
 fn salida(c: &mut Command) -> String {
     c.output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default()
 }

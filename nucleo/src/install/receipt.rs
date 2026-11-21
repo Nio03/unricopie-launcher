@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use super::recipe::Platform;
 use super::release::Channel;
+use crate::antivirus::Scan;
 use crate::archive::hash_file;
 use crate::path::RelPath;
 use crate::{Error, Result};
@@ -57,6 +58,10 @@ pub struct Receipt {
     /// La persona dejó que el juego se actualice solo: Unricopie no apaga su actualizador.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub self_update_allowed: bool,
+    /// Cómo fue el análisis de lo bajado con el antivirus del equipo (ver `crate::antivirus`).
+    /// `None` en los recibos de antes de que se analizara: no se sabe.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scan: Option<Scan>,
 }
 
 /// Una clave que escribió Unricopie, con lo que había antes para poder devolverlo.
@@ -198,6 +203,7 @@ mod tests {
             portable: None,
             settings: Vec::new(),
             self_update_allowed: false,
+            scan: Some(Scan::Clean { scanner: crate::antivirus::DEFENDER.into() }),
         };
         r.write(t.path()).unwrap();
         assert!(!t.path().join("unricopie.json.tmp").exists());
@@ -209,5 +215,36 @@ mod tests {
         fs::remove_file(t.path().join("juego.exe")).unwrap();
         assert_eq!(back.check_run(t.path()).unwrap(), RunState::Missing);
         assert_eq!(Receipt::read(&t.path().join("no-existe")).unwrap(), None);
+    }
+
+    /// Un recibo de antes de que se analizara lo bajado no trae `scan`, y se lee igual.
+    #[test]
+    fn lee_los_recibos_de_antes_del_analisis() {
+        let t = tempfile::tempdir().unwrap();
+        let viejo = serde_json::json!({
+            "format": 1, "entry": "recomps/prueba", "game": null, "repo": "a/b", "version": "v1", "channel": "untested",
+            "platform": "windows-x64", "asset": "prueba.zip", "url": "https://example.invalid/prueba.zip", "size": 1,
+            "sha256": "00", "sha256_verified": true, "run": "juego.exe", "run_stamp": null, "installed_at": 1, "files": []
+        });
+        fs::write(t.path().join(FILE_NAME), viejo.to_string()).unwrap();
+        let leido = Receipt::read(t.path()).unwrap().unwrap();
+        assert_eq!(leido.scan, None);
+        // Al guardarlo de nuevo sigue sin traerlo.
+        leido.write(t.path()).unwrap();
+        assert!(!fs::read_to_string(t.path().join(FILE_NAME)).unwrap().contains("\"scan\""));
+
+        // Con el resultado, va y vuelve.
+        let limpio = Receipt { scan: Some(Scan::Clean { scanner: crate::antivirus::DEFENDER.into() }), ..leido.clone() };
+        limpio.write(t.path()).unwrap();
+        let texto: serde_json::Value = serde_json::from_str(&fs::read_to_string(t.path().join(FILE_NAME)).unwrap()).unwrap();
+        assert_eq!(texto["scan"], serde_json::json!({ "state": "clean", "scanner": "Microsoft Defender" }));
+        assert_eq!(Receipt::read(t.path()).unwrap().unwrap(), limpio);
+
+        // Y un motivo que esta versión no conoce (un recibo de una más nueva) no impide leerlo.
+        let mut nuevo = viejo.clone();
+        nuevo["scan"] = serde_json::json!({ "state": "not-scanned", "reason": "de-otra-version" });
+        fs::write(t.path().join(FILE_NAME), nuevo.to_string()).unwrap();
+        let leido = Receipt::read(t.path()).unwrap().unwrap();
+        assert_eq!(leido.scan, Some(Scan::NotScanned { reason: crate::antivirus::Reason::Unknown }));
     }
 }

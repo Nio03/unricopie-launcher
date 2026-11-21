@@ -519,7 +519,7 @@ mod tests {
     }
 
     fn got(sha: &str) -> Downloaded {
-        Downloaded { size: 1, sha256: sha.into() }
+        Downloaded { size: 1, sha256: sha.into(), scan: None }
     }
 
     fn read(dir: &Path, rel: &str) -> Vec<u8> {
@@ -567,6 +567,49 @@ mod tests {
             ("ajustes.json", b"{}"),
         ]);
         z
+    }
+
+    /// Instalar una versión anterior encima de una más nueva es una actualización más: el plan
+    /// es el de esa etiqueta (`installer::plan_tag`) y el camino, el mismo.
+    #[test]
+    fn baja_a_una_version_anterior_como_una_actualizacion() {
+        let t = tempfile::tempdir().unwrap();
+        let lib = Library::new(t.path());
+        let v2 = plan_v(&lib, "v2.0.0");
+        installer::install_downloaded(&lib, &v2, &zip_v2(t.path()), &got("dos")).unwrap();
+        let d = v2.dest.clone();
+        fs::create_dir_all(d.join("saves")).unwrap();
+        fs::write(d.join("saves").join("slot1.sav"), b"partida con la v2").unwrap();
+        fs::write(d.join("config.ini"), b"mis ajustes").unwrap();
+
+        let z1 = t.path().join("v1.zip");
+        zip_with(&z1, &[("Zelda64Recompiled.exe", b"exe 1"), ("assets/a.bin", b"a"), ("config.ini", b"por defecto"), ("vieja.dll", b"vieja")]);
+        let v1 = plan_v(&lib, "v1.0.0");
+        // Para `status` es «otra versión», sea más nueva o más vieja.
+        assert!(matches!(status(&v1).unwrap(), Status::Available(r) if r.version == "v2.0.0"));
+        let down = update_downloaded(&lib, &v1, &z1, &got("uno")).unwrap();
+
+        assert_eq!(down.receipt.version, "v1.0.0");
+        assert_eq!(Receipt::read(&d).unwrap().unwrap().version, "v1.0.0");
+        // El programa es el de la v1: lo que solo traía la v2 ya no está.
+        assert_eq!(read(&d, "Zelda64Recompiled.exe"), b"exe 1");
+        assert_eq!(read(&d, "vieja.dll"), b"vieja");
+        assert!(!d.join("nueva.dll").exists());
+        // Lo del jugador pasa igual que al actualizar.
+        assert_eq!(read(&d, "saves/slot1.sav"), b"partida con la v2");
+        assert_eq!(read(&d, "config.ini"), b"mis ajustes");
+        assert_eq!(names(&down.merge.kept), ["config.ini"]);
+        // Y la v2 queda guardada entera, con lo del jugador, para volver a ella sin bajar nada.
+        let prev = previous_versions(&lib, &d).unwrap();
+        assert_eq!(prev.len(), 1);
+        assert_eq!(prev[0].receipt.version, "v2.0.0");
+        assert_eq!(read(&prev[0].path, "nueva.dll"), b"nueva");
+        assert_eq!(read(&prev[0].path, "saves/slot1.sav"), b"partida con la v2");
+        // La misma otra vez: ya está.
+        assert!(matches!(update_downloaded(&lib, &v1, &z1, &got("uno")), Err(Error::UpToDate(v)) if v == "v1.0.0"));
+        let back = roll_back(&lib, &d, &prev[0].id).unwrap();
+        assert_eq!(back.receipt.version, "v2.0.0");
+        assert_eq!(read(&d, "nueva.dll"), b"nueva");
     }
 
     #[test]

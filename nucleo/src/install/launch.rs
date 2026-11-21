@@ -7,6 +7,15 @@
 //! y a `place::place`, que le deja la copia donde la busca. Si `copy.place` dice que la copia va
 //! por argumento o variable (`{copy}`), aquí se pone.
 //!
+//! En Linux, además (`linux::adapt`): una AppImage se abre con `APPIMAGE_EXTRACT_AND_RUN=1` si el
+//! equipo no tiene FUSE 2, lo demás lleva la carpeta del ejecutable y la del juego delante en
+//! `LD_LIBRARY_PATH`, y a un ejecutable al que le faltan librerías del sistema no se le abre: se
+//! dice cuáles (`Error::MissingLibraries`).
+//!
+//! En Windows (`windows::check`): si el ejecutable, o una DLL suya, importa las librerías de
+//! Visual C++ o `vulkan-1.dll` y no están, tampoco se abre (`Error::MissingRuntime`,
+//! `Error::MissingVulkan`).
+//!
 //! Falta: las apps de macOS (`.app`) y lo que pide `copy.how: argument`.
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -14,7 +23,7 @@ use std::process::Command;
 
 use super::installer::Library;
 use super::portable::{check_rule, same_game};
-use super::recipe::Recipe;
+use super::recipe::{PackageKind, Platform, Recipe};
 use super::update::installed;
 use crate::path::RelPath;
 use crate::{Error, Result};
@@ -47,9 +56,11 @@ pub fn prepare(library: &Library, dir: &Path, recipe: &Recipe) -> Result<Launch>
         .run
         .as_deref()
         .ok_or_else(|| Error::NoRunInRecipe(dir.to_path_buf()))?;
-    let program = RelPath::new(run)?.under(dir);
+    let mut program = RelPath::new(run)?.under(dir);
+    // Una app de macOS es una carpeta: se abre su ejecutable directamente (no con `open`), para
+    // que le lleguen las variables de la receta y se pueda esperar a que se cierre.
     if program.is_dir() {
-        return Err(Error::MacAppNotYet(program));
+        program = bundle_executable(&program).ok_or(Error::MacAppNotYet(program))?;
     }
     if !program.is_file() {
         return Err(Error::RunMissing(program));
@@ -69,7 +80,44 @@ pub fn prepare(library: &Library, dir: &Path, recipe: &Recipe) -> Result<Launch>
     let (copy_args, copy_env) = super::place::launch_extras(library, dir, recipe, &receipt)?;
     args.extend(copy_args);
     env.extend(copy_env);
+    // Solo lo instalado para Linux y en Linux: lo de otro sistema no se puede abrir aquí.
+    if cfg!(target_os = "linux") && matches!(receipt.platform, Platform::LinuxX64 | Platform::LinuxArm64) {
+        let appimage = recipe.resolve(receipt.game.as_deref(), receipt.platform).is_ok_and(|r| r.kind == PackageKind::Appimage);
+        super::linux::adapt(&program, dir, appimage, &mut env)?;
+    }
+    // Lo mismo en Windows: si faltan Visual C++ o Vulkan, se dice antes de que lo diga Windows.
+    if cfg!(windows) && matches!(receipt.platform, Platform::WindowsX64 | Platform::WindowsX86 | Platform::WindowsArm64) {
+        super::windows::check(&program, dir)?;
+    }
     Ok(Launch { program, args, env, cwd: dir.to_path_buf() })
+}
+
+/// El ejecutable de una app de macOS (`Juego.app/Contents/MacOS/…`): el que nombra
+/// `CFBundleExecutable` en su `Info.plist`; si el plist es binario o no lo dice, el único archivo
+/// de `MacOS`, o el que se llama como la app. Sin adivinar más: si no, `None`.
+pub fn bundle_executable(app: &Path) -> Option<PathBuf> {
+    let macos = app.join("Contents").join("MacOS");
+    if let Ok(plist) = std::fs::read_to_string(app.join("Contents").join("Info.plist")) {
+        if let Some(name) = plist_string(&plist, "CFBundleExecutable") {
+            let exe = macos.join(&name);
+            if !name.contains(['/', '\\']) && exe.is_file() {
+                return Some(exe);
+            }
+        }
+    }
+    let files: Vec<PathBuf> = std::fs::read_dir(&macos).ok()?.flatten().map(|e| e.path()).filter(|p| p.is_file()).collect();
+    if let [solo] = files.as_slice() {
+        return Some(solo.clone());
+    }
+    let stem = app.file_stem()?.to_string_lossy().to_lowercase();
+    files.into_iter().find(|p| p.file_name().is_some_and(|n| n.to_string_lossy().to_lowercase() == stem))
+}
+
+/// El texto de `<key>clave</key><string>…</string>` en un plist XML.
+fn plist_string(plist: &str, key: &str) -> Option<String> {
+    let after = plist.split_once(&format!("<key>{key}</key>"))?.1.trim_start();
+    let value = after.strip_prefix("<string>")?.split_once("</string>")?.0.trim();
+    (!value.is_empty()).then(|| value.replace("&amp;", "&"))
 }
 
 /// `{game}` → la carpeta del juego, sin pasar por texto (la ruta puede no ser UTF-8).
@@ -126,6 +174,7 @@ mod tests {
     }
 
     /// Lo que hay en una carpeta: ruta, tamaño y fecha de cada cosa.
+    #[cfg(windows)]
     fn snapshot(dir: &Path) -> Vec<(PathBuf, u64, std::time::SystemTime)> {
         fn go(d: &Path, out: &mut Vec<(PathBuf, u64, std::time::SystemTime)>) {
             let Ok(rd) = fs::read_dir(d) else { return };
@@ -144,7 +193,9 @@ mod tests {
     }
 
     /// Cierra el juego pase lo que pase.
+    #[cfg(windows)]
     struct Kill(std::process::Child);
+    #[cfg(windows)]
     impl Drop for Kill {
         fn drop(&mut self) {
             let _ = self.0.kill();
@@ -231,5 +282,39 @@ mod tests {
         assert_eq!(expand("{game}", g), OsString::from("/juegos/x"));
         assert_eq!(expand("--configdir={game}/wz", g), OsString::from("--configdir=/juegos/x/wz"));
         assert_eq!(expand("sin nada", g), OsString::from("sin nada"));
+    }
+
+    #[test]
+    fn encuentra_el_ejecutable_de_una_app_de_macos() {
+        let t = tempfile::tempdir().unwrap();
+        let app = |nombre: &str, plist: Option<&str>, archivos: &[&str]| {
+            let a = t.path().join(nombre);
+            let m = a.join("Contents").join("MacOS");
+            fs::create_dir_all(&m).unwrap();
+            if let Some(p) = plist {
+                fs::write(a.join("Contents").join("Info.plist"), p).unwrap();
+            }
+            for f in archivos {
+                fs::write(m.join(f), b"x").unwrap();
+            }
+            a
+        };
+        // Lo que dice el Info.plist manda, aunque haya otros archivos.
+        let plist = "<plist><dict>\n\t<key>CFBundleName</key>\n\t<string>Zelda</string>\n\t<key>CFBundleExecutable</key>\n\t<string>Zelda64Recompiled</string>\n</dict></plist>";
+        let z = app("Zelda64Recompiled.app", Some(plist), &["Zelda64Recompiled", "ayuda"]);
+        assert_eq!(bundle_executable(&z), Some(z.join("Contents/MacOS/Zelda64Recompiled")));
+        // Plist binario (no se lee) y un solo archivo: ese.
+        let b = app("Banjo.app", Some("bplist00\u{1}raro"), &["BanjoRecompiled"]);
+        assert_eq!(bundle_executable(&b), Some(b.join("Contents/MacOS/BanjoRecompiled")));
+        // Sin plist y varios: el que se llama como la app, sin mayúsculas.
+        let o = app("OpenMW.app", None, &["openmw", "openmw-launcher"]);
+        assert_eq!(bundle_executable(&o), Some(o.join("Contents/MacOS/openmw")));
+        // Varios y ninguno se llama así: no se adivina.
+        let x = app("Raro.app", None, &["a", "b"]);
+        assert_eq!(bundle_executable(&x), None);
+        // Un plist que apunta fuera de MacOS no vale.
+        let malo = "<key>CFBundleExecutable</key><string>../../fuera</string>";
+        let f = app("Fuera.app", Some(malo), &["Fuera"]);
+        assert_eq!(bundle_executable(&f), Some(f.join("Contents/MacOS/Fuera")));
     }
 }

@@ -1504,6 +1504,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fs4"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e72ed92b67c146290f88e9c89d60ca163ea417a446f61ffd7b72df3e7f1dfd5"
+dependencies = [
+ "rustix 1.1.6",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "futures"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5112,7 +5122,7 @@ checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "unricopie"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "embed-resource",
  "image",
@@ -5126,6 +5136,8 @@ dependencies = [
  "tempfile",
  "unricopie-nucleo",
  "ureq",
+ "windows-sys 0.61.2",
+ "zip",
 ]
 
 [[package]]
@@ -5144,6 +5156,7 @@ dependencies = [
  "crc32fast",
  "dirs",
  "flate2",
+ "fs4",
  "known-folders",
  "lzma-rust2",
  "md-5",

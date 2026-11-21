@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Unricopie
+GenericName=Game launcher
+GenericName[es]=Launcher de juegos
+Comment=Installs PC ports and recompilations from their official releases
+Comment[es]=Instala ports y recompilaciones para PC desde sus versiones oficiales
+Exec=unricopie
+Icon=unricopie
+Terminal=false
+Categories=Game;

@@ -89,7 +89,9 @@ fn mostrar_juegos(st: &Estado, ui: &AppWindow) {
     ex.set_filas(ModelRc::default());
     // Las consolas, de la que más juegos tiene a la que menos: (clave, nombre, color, juegos).
     let mut por_consola: BTreeMap<&str, (SharedString, slint::Color, Vec<&Juego>)> = BTreeMap::new();
-    for (c, j) in &st.juegos {
+    // Explorar es el catálogo: lo añadido a mano que no está en él solo sale en la biblioteca.
+    let del_catalogo = || st.juegos.iter().filter(|(c, _)| c != crate::catalogo::CONSOLA_A_MANO);
+    for (c, j) in del_catalogo() {
         por_consola.entry(c.as_str()).or_insert_with(|| (j.consola_nombre.clone(), j.color, Vec::new())).2.push(j);
     }
     let mut consolas: Vec<(&str, SharedString, slint::Color, Vec<&Juego>)> = por_consola.into_iter().map(|(k, (n, c, v))| (k, n, c, v)).collect();
@@ -97,7 +99,7 @@ fn mostrar_juegos(st: &Estado, ui: &AppWindow) {
 
     if !ex.get_todos() {
         let mut estantes = Vec::new();
-        let inst: Vec<&Juego> = st.juegos.iter().map(|(_, j)| j).filter(|j| instalable(j)).collect();
+        let inst: Vec<&Juego> = del_catalogo().map(|(_, j)| j).filter(|j| instalable(j)).collect();
         if !inst.is_empty() {
             estantes.push(EstanteJuegos {
                 grupo: "unricopie".into(),
@@ -131,9 +133,7 @@ fn mostrar_juegos(st: &Estado, ui: &AppWindow) {
     let consola = f.de("consola");
     let estado = f.de("estado");
     let unricopie = f.de("unricopie");
-    let mut v: Vec<&Juego> = st
-        .juegos
-        .iter()
+    let mut v: Vec<&Juego> = del_catalogo()
         .filter(|(c, j)| {
             (q.is_empty() || j.nombre.to_lowercase().contains(&q))
                 && consola.is_none_or(|s| s.contains(c.as_str()))
@@ -159,13 +159,13 @@ fn mostrar_juegos(st: &Estado, ui: &AppWindow) {
         clave: "consola".into(),
         opciones: modelo(consolas.iter().map(|(k, n, c, js)| opcion(f, "consola", k, n, *c, 1, js.len())).collect()),
     });
-    let por_estado = |n: i32| st.juegos.iter().filter(|(_, j)| j.nivel == n).count();
+    let por_estado = |n: i32| del_catalogo().filter(|(_, j)| j.nivel == n).count();
     grupos.push(GrupoFiltro {
         clave: "estado".into(),
         opciones: modelo((0..3).map(|n| opcion(f, "estado", &n.to_string(), "", color_estado(n), 2, por_estado(n))).collect()),
     });
-    let n_inst = st.juegos.iter().filter(|(_, j)| instalable(j)).count();
-    let n_instalados = st.juegos.iter().filter(|(_, j)| j.instalado).count();
+    let n_inst = del_catalogo().filter(|(_, j)| instalable(j)).count();
+    let n_instalados = del_catalogo().filter(|(_, j)| j.instalado).count();
     grupos.push(GrupoFiltro {
         clave: "unricopie".into(),
         opciones: modelo(vec![

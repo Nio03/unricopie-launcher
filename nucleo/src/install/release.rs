@@ -70,7 +70,9 @@ impl GhAsset {
     }
 }
 
-/// Las últimas 30 releases de `repo` (que ya viene validado por la receta).
+/// Las últimas 30 releases de `repo` (que ya viene validado por la receta). Si GitHub dice que
+/// el repo no existe (mal escrito al añadirlo a mano, privado, o el proyecto se fue),
+/// `Error::NoSuchRepo`.
 pub fn list(agent: &ureq::Agent, repo: &str) -> Result<Vec<GhRelease>> {
     let url = format!("https://api.github.com/repos/{repo}/releases?per_page=30");
     let resp = agent
@@ -78,8 +80,47 @@ pub fn list(agent: &ureq::Agent, repo: &str) -> Result<Vec<GhRelease>> {
         .set("Accept", "application/vnd.github+json")
         .set("X-GitHub-Api-Version", "2022-11-28")
         .call()
-        .map_err(|e| net(&url, e))?;
+        .map_err(|e| match e {
+            ureq::Error::Status(404, _) => Error::NoSuchRepo(repo.to_string()),
+            e => net(&url, e),
+        })?;
     resp.into_json().map_err(|e| Error::Network { url, reason: e.to_string() })
+}
+
+/// La release de `repo` con la etiqueta `tag`, aunque ya no esté entre las últimas 30. Si no
+/// existe (o es un borrador, que la API no enseña sin clave), `Error::NoSuchRelease`.
+pub fn get(agent: &ureq::Agent, repo: &str, tag: &str) -> Result<GhRelease> {
+    let url = format!("https://api.github.com/repos/{repo}/releases/tags/{}", escape(tag));
+    let missing = || Error::NoSuchRelease { repo: repo.to_string(), tag: tag.to_string() };
+    let resp = match agent.get(&url).set("Accept", "application/vnd.github+json").set("X-GitHub-Api-Version", "2022-11-28").call() {
+        Ok(r) => r,
+        Err(ureq::Error::Status(404, _)) => return Err(missing()),
+        Err(e) => return Err(net(&url, e)),
+    };
+    let rel: GhRelease = resp.into_json().map_err(|e| Error::Network { url, reason: e.to_string() })?;
+    if rel.draft || rel.tag_name != tag {
+        return Err(missing());
+    }
+    Ok(rel)
+}
+
+/// La etiqueta como parte de una dirección: todo lo que no sea letra, dígito o `-._~` va con `%`
+/// (una etiqueta de git puede llevar `/` o `+`).
+fn escape(tag: &str) -> String {
+    let mut out = String::with_capacity(tag.len());
+    for b in tag.bytes() {
+        if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'.' | b'_' | b'~') {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
+}
+
+/// La release con la etiqueta `tag` entre las ya leídas. Un borrador nunca.
+pub fn by_tag<'a>(releases: &'a [GhRelease], tag: &str) -> Option<&'a GhRelease> {
+    releases.iter().find(|r| !r.draft && r.tag_name == tag)
 }
 
 /// La release que toca en `channel`. Para `Stable`, la de `stable_tag`.
@@ -148,6 +189,17 @@ pub(crate) mod tests {
         assert!(pick(&rs, Channel::Stable, None).is_none());
         // Un borrador nunca, aunque se pida por su etiqueta.
         assert!(pick(&rs, Channel::Stable, Some("v1.3.0-dev")).is_none());
+    }
+
+    #[test]
+    fn busca_por_etiqueta() {
+        let rs: Vec<GhRelease> = serde_json::from_str(RELEASES).unwrap();
+        assert_eq!(by_tag(&rs, "v1.2.1").unwrap().published_at.as_deref(), Some("2025-08-18T22:23:16Z"));
+        assert!(by_tag(&rs, "v1.2.3-beta").unwrap().prerelease);
+        assert!(by_tag(&rs, "v1.3.0-dev").is_none(), "un borrador no se instala");
+        assert!(by_tag(&rs, "v9").is_none());
+        assert_eq!(escape("v1.2.3-beta_1~x"), "v1.2.3-beta_1~x");
+        assert_eq!(escape("release/1.0+build"), "release%2F1.0%2Bbuild");
     }
 
     #[test]

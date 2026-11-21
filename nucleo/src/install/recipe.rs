@@ -124,6 +124,11 @@ pub struct Recipe {
     pub checked: Checked,
     #[serde(default)]
     pub pending: Vec<String>,
+    /// La añadió la persona a mano desde un repo de GitHub (`install::added`): no es una receta
+    /// revisada de unricopie-data, y Unricopie no sabe nada del juego. Las del catálogo no lo
+    /// traen nunca.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub by_hand: bool,
 }
 
 impl OneOrMany {
@@ -608,6 +613,43 @@ pub enum FirstRun {
     ExtractAssets,
 }
 
+/// Para qué usa el juego la copia del jugador. Es lo que más pregunta la gente («¿puedo borrar
+/// la ROM o la sigue necesitando?»), y la receta lo sabe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CopyUse {
+    /// No hace falta copia.
+    None,
+    /// La pide su propio instalador: la receta no sabe cuándo la usa.
+    Installer,
+    /// Solo la primera vez: el juego genera sus archivos con ella (como el `oot.o2r` de Ship of
+    /// Harkinian) y después ya no la lee.
+    Once,
+    /// La lee cada vez que se abre.
+    Always,
+}
+
+impl CopyRule {
+    /// Cómo usa la copia en esta plataforma y modo. Es «solo la primera vez» si la receta dice
+    /// que el juego extrae sus archivos, o si cada forma de dársela que vale aquí es solo «cuando
+    /// falta» lo que el juego genera con ella.
+    pub fn usage(&self, platform: Platform, portable: bool) -> CopyUse {
+        match self.how {
+            CopyHow::None => return CopyUse::None,
+            CopyHow::OwnInstaller => return CopyUse::Installer,
+            _ => {}
+        }
+        if self.first_run == Some(FirstRun::ExtractAssets) {
+            return CopyUse::Once;
+        }
+        let mut places = self.place.iter().filter(|p| p.applies_to(platform, portable)).peekable();
+        if places.peek().is_some() && places.all(|p| p.when_missing.is_some()) {
+            CopyUse::Once
+        } else {
+            CopyUse::Always
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Accepted {
     pub name: String,
@@ -729,7 +771,8 @@ impl Recipe {
         }
         match self.entry.split_once('/') {
             Some((kind, id))
-                if ["recomps", "ports", "decomps", "tools", "mods"].contains(&kind)
+                // `added`: lo que la persona añadió a mano y no está en el catálogo (`install::added`).
+                if ["recomps", "ports", "decomps", "tools", "mods", super::added::KIND].contains(&kind)
                     && !id.is_empty()
                     && id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') => {}
             _ => return Err(Error::BadRecipe(format!("entrada no válida: {}", self.entry))),
@@ -1088,5 +1131,28 @@ pub(crate) mod tests {
         assert_eq!(PackageKind::from_name("Setup.MSI"), Some(PackageKind::Installer));
         assert_eq!(PackageKind::from_name("juego.exe"), Some(PackageKind::Portable));
         assert_eq!(PackageKind::from_name("P.T.PC.Port.Setup-linux"), None);
+    }
+
+    #[test]
+    fn dice_para_que_usa_la_copia() {
+        let w = Platform::WindowsX64;
+        // Zelda: la pide la propia app y la lee cada vez.
+        assert_eq!(Recipe::from_json(ZELDA).unwrap().copy.usage(w, false), CopyUse::Always);
+        let regla = |json: &str| serde_json::from_str::<CopyRule>(json).unwrap();
+        assert_eq!(regla(r#"{ "how": "none" }"#).usage(w, false), CopyUse::None);
+        assert_eq!(regla(r#"{ "how": "own-installer" }"#).usage(w, false), CopyUse::Installer);
+        // Ship of Harkinian: extrae sus archivos la primera vez.
+        assert_eq!(regla(r#"{ "how": "in-app", "first-run": "extract-assets" }"#).usage(w, false), CopyUse::Once);
+        // Solo se le da cuando falta lo que genera: también es solo la primera vez.
+        let generada = regla(r#"{ "how": "argument", "argument": "--rom",
+            "place": [{ "when-missing": "{data}/oot.o2r", "args": ["--rom", "{copy}"] }] }"#);
+        assert_eq!(generada.usage(w, false), CopyUse::Once);
+        // Si alguna forma de dársela no depende de eso, la usa siempre.
+        let mixta = regla(r#"{ "how": "argument", "argument": "--rom",
+            "place": [{ "when-missing": "{data}/oot.o2r", "args": ["--rom", "{copy}"] },
+                      { "platforms": ["windows-x64"], "store": "{data}/rom.z64" }] }"#);
+        assert_eq!(mixta.usage(w, false), CopyUse::Always);
+        // La regla que no vale en esta plataforma no cuenta.
+        assert_eq!(mixta.usage(Platform::LinuxX64, false), CopyUse::Once);
     }
 }

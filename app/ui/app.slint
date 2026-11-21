@@ -26,6 +26,25 @@ export struct Anterior {
 }
 
 // Un proyecto que lleva el juego a PC (una ficha del catálogo con su receta).
+// Un error del núcleo, como datos (src/errores.rs): la frase la escribe Util.error.
+export struct ErrorUi {
+    codigo: int,
+    a: string,
+    b: string,
+    c: string,
+    n: int,
+}
+
+// Una versión publicada en GitHub con un archivo para este sistema (pestaña Versiones).
+export struct VersionGh {
+    tag: string,
+    fecha: string,
+    tam: string,
+    prueba: bool,
+    instalada: bool,
+    ultima: bool,
+}
+
 export struct Proyecto {
     entry: string,
     nombre: string,
@@ -34,8 +53,11 @@ export struct Proyecto {
     toolchain: string,
     autor: string,
     repo: string,
-    // 0 totalmente jugable, 1 jugable, 2 experimental: el texto y el color los pone la ventana.
+    // 0 totalmente jugable, 1 jugable, 2 experimental, 3 sin revisar (añadido a mano, sin ficha en
+    // el catálogo): el texto y el color los pone la ventana.
     nivel: int,
+    // Su receta la añadió la persona a mano desde GitHub: Unricopie no la revisó.
+    a-mano: bool,
     recomendado: bool,
     // Ya en el idioma elegido; vacío si la ficha no lo tiene en ese idioma.
     motivo: string,
@@ -85,6 +107,23 @@ export struct Proyecto {
     canal: int,
     carpeta: string,
     portable: bool,
+    // Para qué usa el juego tu copia: -1 sin receta, 0 no hace falta, 1 la pide su instalador,
+    // 2 solo la primera vez (genera sus archivos con ella), 3 cada vez que se abre.
+    copia-uso: int,
+    // Las versiones publicadas: 0 sin pedir, 1 leyendo, 2 listas (gh), 3 no se pudieron leer.
+    gh-estado: int,
+    gh-error: ErrorUi,
+    gh: [VersionGh],
+    // El análisis de lo instalado: 0 no se sabe (instalado antes de la 0.2), 1 sin amenazas (con
+    // analisis-escaner), 2 sin analizar (analisis-motivo: 0 no hay antivirus, 1 Defender apagado,
+    // 2 tardó demasiado, 3 falló, 4 otro).
+    analisis: int,
+    analisis-escaner: string,
+    analisis-motivo: int,
+    // Lo que ocupa en disco el juego instalado y tu copia en la biblioteca («350 MB»); vacío si
+    // no hay. Solo en el juego abierto.
+    ocupa-juego: string,
+    ocupa-copia: string,
     // Las opiniones de la gente sobre este proyecto (recompendium.com/reportes.json).
     op-total: int,
     op-bien: int,
@@ -96,13 +135,35 @@ export struct Proyecto {
     op-listo: bool,
 }
 
-// Un error del núcleo, como datos (src/errores.rs): la frase la escribe Util.error.
-export struct ErrorUi {
-    codigo: int,
-    a: string,
-    b: string,
-    c: string,
-    n: int,
+// Un proyecto añadido a mano desde GitHub («Añadir un proyecto de GitHub», en Ajustes).
+export struct Anadido {
+    entry: string,
+    // El juego bajo el que se ve, para abrir su página; vacío si ya no se muestra.
+    juego: string,
+    nombre: string,
+    repo: string,
+    // La versión instalada; vacía si no lo está.
+    version: string,
+    instalado: bool,
+    carpeta: string,
+    // Es la receta que se usa. Si no, el catálogo ya trae la suya y esta sobra.
+    en-uso: bool,
+}
+
+// Una copia encontrada al buscar en una carpeta («Tus copias», en Ajustes).
+export struct CopiaHallada {
+    juego: string,
+    proyecto: string,
+    // La copia aceptada con la que coincide («Majora's Mask (N64, EE. UU.)»).
+    aceptada: string,
+    ruta: string,
+    tam: string,
+    // La persona la quiere guardar.
+    elegida: bool,
+    // Después de guardar: 0 todavía no, 1 guardada, 2 ya estaba, 3 repetida (otra igual ya se
+    // guardó), 4 no se pudo (error).
+    resultado: int,
+    error: ErrorUi,
 }
 
 // Una descarga de la cola.
@@ -443,9 +504,12 @@ export global Portadas {
 
 export global Util {
     public pure function nivel-color(n: int) -> color {
-        return n == 0 ? Paleta.ok : n == 1 ? Paleta.warn : Paleta.night;
+        return n == 0 ? Paleta.ok : n == 1 || n == 3 ? Paleta.warn : Paleta.night;
     }
     public pure function estado(n: int) -> string {
+        if n == 3 {
+            return @tr("Sin revisar");
+        }
         return n == 0 ? @tr("Totalmente jugable") : n == 1 ? @tr("Jugable") : @tr("Experimental");
     }
     // Los mismos textos que el sitio (src/i18n/ui.ts, «Cómo llega a PC»).
@@ -470,6 +534,17 @@ export global Util {
             : c == 2 ? (nombre != "" ? @tr("Comprobada: {}", nombre) : @tr("Comprobada"))
             : c == 3 ? @tr("Guardada, sin comprobar")
             : @tr("Todavía no la elegiste");
+    }
+    // Para qué la usa el juego (Proyecto.copia-uso); solo 2 y 3 dicen algo nuevo.
+    public pure function uso-copia(u: int) -> string {
+        return u == 2 ? @tr("Solo la primera vez: genera sus propios archivos con ella y después ya no la lee.")
+            : @tr("Cada vez que lo abres.");
+    }
+    // Lo que ocupa: el juego, tu copia o los dos.
+    public pure function ocupa(juego: string, copia: string) -> string {
+        return juego != "" && copia != "" ? @tr("El juego, {}; tu copia, {}", juego, copia)
+            : juego != "" ? @tr("El juego, {}", juego)
+            : @tr("Tu copia, {}", copia);
     }
     public pure function descarga(d: Descarga) -> string {
         return d.fase == 0 ? @tr("En cola")
@@ -563,7 +638,7 @@ export global Util {
             : e.codigo == 32 ? @tr("el valor no cabe en la configuración {}", e.a)
             : e.codigo == 33 ? @tr("no se puede abrir {}: {}", e.a, e.b)
             : e.codigo == 34 ? @tr("la receta no dice qué ejecutable abrir")
-            : e.codigo == 35 ? @tr("abrir apps de macOS todavía no se hace")
+            : e.codigo == 35 ? @tr("no se encuentra el programa dentro de la app de macOS")
             : e.codigo == 36 ? @tr("no está {}", e.a)
             : e.codigo == 37 ? @tr("tu copia no es ninguna de las que acepta este proyecto")
             : e.codigo == 38 ? @tr("a tu copia le falta {}", e.a)
@@ -576,6 +651,15 @@ export global Util {
             : e.codigo == 45 ? @tr("el antivirus del sitio marcó {}", e.a)
             : e.codigo == 46 ? @tr("este sistema todavía no tiene versión")
             : e.codigo == 47 ? @tr("{} no trae nada que el juego use como mod", e.a)
+            : e.codigo == 48 ? (e.b != "" ? @tr("faltan librerías del sistema ({}). Se instalan con: {}", e.a, e.b) : @tr("faltan librerías del sistema ({})", e.a))
+            : e.codigo == 49 ? @tr("{} no tiene ninguna versión con la etiqueta {}", e.a, e.b)
+            : e.codigo == 50 ? @tr("faltan las librerías de Visual C++ ({}). Se instalan con el instalador de Microsoft: {}", e.a, e.b)
+            : e.codigo == 51 ? @tr("falta Vulkan (vulkan-1.dll). Se instala al actualizar el controlador de la tarjeta gráfica")
+            : e.codigo == 52 ? @tr("no hay espacio en el disco: hacen falta {} MB y hay {} MB libres en {}", e.a, e.b, e.c)
+            : e.codigo == 54 ? @tr("«{}» no es un repositorio de GitHub: escribe usuario/proyecto o su dirección", e.a)
+            : e.codigo == 56 ? @tr("GitHub no tiene ningún repositorio público {}: mira si está bien escrito", e.a)
+            : e.codigo == 55 ? (e.a != "" ? @tr("no se sabe cuál de sus programas abre el juego ({})", e.a) : @tr("no trae ningún programa que abrir"))
+            : e.codigo == 53 ? (e.b != "" ? @tr("el antivirus del equipo encontró {} en {}. La descarga se borró y no se instaló nada", e.b, e.a) : @tr("el antivirus del equipo encontró una amenaza en {}. La descarga se borró y no se instaló nada", e.a))
             : "";
     }
     public pure function aviso(c: int, a: string, e: ErrorUi) -> string {
@@ -1210,9 +1294,21 @@ component FilaProyecto inherits Rectangle {
                         font-weight: 800;
                     }
                 }
+                if root.p.a-mano: Rectangle {
+                    border-radius: 4px;
+                    border-width: Paleta.bw;
+                    border-color: Paleta.warn;
+                    width: at.preferred-width + 12px;
+                    at := Text {
+                        text: @tr("Añadido a mano");
+                        color: Paleta.warn;
+                        font-size: 11.1px;
+                        font-weight: 800;
+                    }
+                }
             }
             Text {
-                text: @tr("{}, de {}", Util.metodo(root.p.metodo, root.p.toolchain), root.p.autor);
+                text: Util.metodo(root.p.metodo, root.p.toolchain) == "" ? @tr("de {}", root.p.autor) : @tr("{}, de {}", Util.metodo(root.p.metodo, root.p.toolchain), root.p.autor);
                 color: Paleta.fg-3;
                 font-size: 12.3px;
                 wrap: word-wrap;
@@ -1965,6 +2061,8 @@ component Casilla inherits Rectangle {
 component Campo inherits Rectangle {
     in property <string> placeholder;
     in-out property <string> text <=> input.text;
+    // Se pulsó Intro.
+    callback accepted();
     height: 32px;
     border-radius: 6px;
     background: Paleta.panel;
@@ -1979,6 +2077,7 @@ component Campo inherits Rectangle {
                 font-size: 13px;
                 vertical-alignment: center;
                 single-line: true;
+                accepted => { root.accepted(); }
             }
             Text {
                 visible: input.text == "";
@@ -3677,6 +3776,8 @@ component PaginaJuego inherits Rectangle {
     callback opinar(string, int);
     callback actualizar(string);
     callback volver(string, string);
+    callback ver-versiones(string);
+    callback instalar-version(string, string);
     callback borrar-anterior(string, string);
     // La versión anterior que se está por borrar (pide confirmación).
     property <string> confirmar;
@@ -3943,6 +4044,7 @@ component PaginaJuego inherits Rectangle {
                 if root.pestana == 0: Nota {
                     text: root.n > 1
                         ? @tr("Hay {} proyectos que llevan este juego a PC. Elige uno para instalarlo; el botón de arriba usa el que está marcado.", root.n)
+                        : root.p.a-mano ? @tr("Lo añadiste a mano desde GitHub: Unricopie instala lo que publica su repositorio, pero no lo revisó y no sabe qué necesita.")
                         : @tr("Es el único proyecto del catálogo que lleva este juego a PC.");
                 }
                 // Las versiones de este proyecto en tu equipo: la que está en uso y las guardadas al
@@ -3999,6 +4101,79 @@ component PaginaJuego inherits Rectangle {
                     Nota {
                         text: @tr("Al actualizar, Unricopie guarda la versión de antes con tus partidas y tus ajustes, para que puedas volver a ella.");
                     }
+                    if root.p.analisis == 1: Nota { text: @tr("Antes de instalarla, {} la analizó y no encontró amenazas.", root.p.analisis-escaner); }
+                    if root.p.analisis == 2: Nota {
+                        text: root.p.analisis-motivo == 0 ? @tr("Sin analizar: en este sistema no hay un antivirus que Unricopie sepa usar.")
+                            : root.p.analisis-motivo == 1 ? @tr("Sin analizar: Microsoft Defender está apagado, seguramente porque usas otro antivirus.")
+                            : root.p.analisis-motivo == 2 ? @tr("Sin analizar: el antivirus tardó demasiado.")
+                            : @tr("Sin analizar: el antivirus no respondió.");
+                    }
+                }
+                // Las versiones que publicó el proyecto: se piden a GitHub solo si la persona quiere.
+                if root.pestana == 0 && root.p.instalable: VerticalLayout {
+                    spacing: 8px;
+                    padding-top: 10px;
+                    Text {
+                        text: @tr("Versiones publicadas");
+                        color: Paleta.fg;
+                        font-size: 14.4px;
+                        font-weight: 800;
+                    }
+                    if root.p.gh-estado == 0: HorizontalLayout {
+                        alignment: start;
+                        Boton {
+                            text: @tr("Ver las versiones publicadas");
+                            clicked => { root.ver-versiones(root.p.entry); }
+                        }
+                    }
+                    if root.p.gh-estado == 1: Nota { text: @tr("Leyendo las versiones en GitHub…"); }
+                    if root.p.gh-estado == 3: Nota { text: @tr("No se pudieron leer: {}.", Util.error(root.p.gh-error)); }
+                    if root.p.gh-estado == 2 && root.p.gh.length == 0: Nota { text: @tr("Ninguna de las últimas versiones trae un archivo para este sistema."); }
+                    if root.p.gh-estado == 2 && root.p.gh.length > 0: Rectangle {
+                        border-radius: 6px;
+                        border-width: Paleta.bw;
+                        border-color: Paleta.line;
+                        clip: true;
+                        VerticalLayout {
+                            padding: Paleta.bw;
+                            for v[i] in root.p.gh: VerticalLayout {
+                                if i > 0: Separador { }
+                                HorizontalLayout {
+                                    padding: 10px;
+                                    spacing: 12px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        horizontal-stretch: 1;
+                                        Text {
+                                            text: v.tag;
+                                            color: Paleta.fg;
+                                            font-size: 13.5px;
+                                            font-weight: 700;
+                                        }
+                                        Text {
+                                            text: v.instalada ? @tr("{} · {} · la que tienes", v.fecha, v.tam)
+                                                : v.ultima ? @tr("{} · {} · la última", v.fecha, v.tam)
+                                                : v.prueba ? @tr("{} · {} · de prueba", v.fecha, v.tam)
+                                                : @tr("{} · {}", v.fecha, v.tam);
+                                            color: Paleta.fg-2;
+                                            font-size: 12.6px;
+                                        }
+                                    }
+                                    if !v.instalada: VerticalLayout {
+                                        alignment: center;
+                                        Boton {
+                                            text: root.p.instalado ? @tr("Cambiar a esta") : @tr("Instalar esta");
+                                            activo: !root.p.bajando && root.p.cambiando == "";
+                                            clicked => { root.instalar-version(root.p.entry, v.tag); }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if root.p.gh-estado == 2 && root.p.instalado && root.p.gh.length > 0: Nota {
+                        text: @tr("Cambiar de versión es como actualizar: la que tienes queda guardada con tus partidas y puedes volver a ella.");
+                    }
                 }
                 if root.pestana == 1: PestanaMods {
                     p: root.p;
@@ -4027,8 +4202,13 @@ component PaginaJuego inherits Rectangle {
                     spacing: 6px;
                     if root.p.requisitos != "": Def { etiqueta: @tr("Qué copia"); valor: root.p.requisitos; }
                     Def { etiqueta: @tr("La tuya"); valor: Util.copia(root.p.copia, root.p.copia-nombre); mal: root.p.copia-falta; }
+                    if root.p.copia-uso >= 2: Def { etiqueta: @tr("La usa"); valor: Util.uso-copia(root.p.copia-uso); }
+                    if root.p.ocupa-juego != "" || root.p.ocupa-copia != "": Def {
+                        etiqueta: @tr("En disco");
+                        valor: Util.ocupa(root.p.ocupa-juego, root.p.ocupa-copia);
+                    }
                     if root.p.pide-copia: Nota {
-                        text: @tr("Unricopie la comprueba con los hashes de la receta y la guarda una vez en tu biblioteca. Antes de abrir el juego se la deja donde la busca.");
+                        text: @tr("Unricopie la comprueba con los hashes de la receta y guarda una copia en tu biblioteca, así que puedes borrar el archivo que elegiste. Antes de abrir el juego se la deja donde la busca.");
                     }
                 }
                 if root.pestana == 4: VerticalLayout {
@@ -4046,8 +4226,9 @@ component PaginaJuego inherits Rectangle {
                             enlace: true;
                             clicked => { root.abrir-enlace("https://github.com/" + root.p.repo); }
                         }
-                        Def { etiqueta: @tr("Cómo llega a PC"); valor: Util.metodo(root.p.metodo, root.p.toolchain); }
-                        Def { etiqueta: @tr("Juego original"); valor: root.original; }
+                        // Lo añadido a mano que no tiene ficha no trae estos datos: no se dejan en blanco.
+                        if Util.metodo(root.p.metodo, root.p.toolchain) != "": Def { etiqueta: @tr("Cómo llega a PC"); valor: Util.metodo(root.p.metodo, root.p.toolchain); }
+                        if root.original != "": Def { etiqueta: @tr("Juego original"); valor: root.original; }
                         if root.j.arte != 0: Def { etiqueta: @tr("Arte"); valor: Util.arte(root.j); }
                     }
                 }
@@ -4109,6 +4290,42 @@ export component AppWindow inherits Window {
     in property <string> raiz;
     in property <bool> portable;
     in property <string> idioma;
+    // «Tus copias»: 0 nada, 1 buscando, 2 encontradas, 3 guardando, 4 guardadas, 5 cancelado,
+    // 6 no se pudo buscar (copias-error).
+    in property <int> copias-fase;
+    in property <string> copias-carpeta;
+    // El avance: 0 mirando qué hay, 1 leyendo, 2 guardando; archivos y bytes ya escritos.
+    in property <int> copias-sub;
+    in property <int> copias-hechos;
+    in property <int> copias-total;
+    in property <string> copias-bytes;
+    in property <string> copias-bytes-total;
+    in property <[CopiaHallada]> copias;
+    // Cuántas están marcadas para guardar.
+    in property <int> copias-elegidas;
+    // Los que no se buscaron: piden la carpeta del juego, o su receta no tiene con qué comparar.
+    in property <int> copias-carpeta-entera;
+    in property <int> copias-sin-hashes;
+    in property <int> copias-ya-guardadas;
+    in property <ErrorUi> copias-error;
+    // «Añadir un proyecto de GitHub»: 0 nada, 1 leyendo sus versiones, 2 ya se sabe qué se
+    // bajaría, 3 hay que elegir el archivo (amano-candidatos), 4 instalando, 5 hay que elegir el
+    // programa (amano-candidatos), 6 instalado, 7 no se pudo (amano-error), 8 ya está en el
+    // catálogo (amano-nombre, amano-juego), 9 está retirado, 10 ya estaba añadido.
+    in property <int> amano-fase;
+    in property <string> amano-repo;
+    in property <string> amano-version;
+    in property <string> amano-archivo;
+    in property <string> amano-tam;
+    in property <[string]> amano-candidatos;
+    // La release trae algún instalador, que Unricopie no usa.
+    in property <bool> amano-instaladores;
+    in property <string> amano-bajado;
+    in property <string> amano-total;
+    in property <string> amano-nombre;
+    in property <string> amano-juego;
+    in property <ErrorUi> amano-error;
+    in property <[Anadido]> amano-lista;
     // El catálogo: 0 leído, 1 no hay, 2 no se pudo leer; y si todas sus recetas se leyeron.
     in property <int> catalogo;
     in property <int> catalogo-proyectos;
@@ -4134,10 +4351,24 @@ export component AppWindow inherits Window {
     callback opinar(string, int);
     callback actualizar(string);
     callback volver(string, string);
+    callback ver-versiones(string);
+    callback instalar-version(string, string);
     callback borrar-anterior(string, string);
     callback cambiar-idioma(string);
     // Se cambió el tema: guardarlo.
     callback guardar-ajustes();
+    // «Tus copias».
+    callback buscar-copias();
+    callback guardar-copias();
+    callback cancelar-copias();
+    // Marcar o desmarcar la copia `i` de la lista.
+    callback marcar-copia(int, bool);
+    // «Añadir un proyecto de GitHub»: buscar lo escrito, elegir un archivo o un programa de los
+    // candidatos (según la fase), instalar lo propuesto y quitar uno de la lista (por su ficha).
+    callback amano-buscar(string);
+    callback amano-elegir(string);
+    callback amano-instalar();
+    callback amano-quitar(string);
 
     VerticalLayout {
         // Arriba: el pastel, las secciones y los ajustes.
@@ -4493,8 +4724,9 @@ export component AppWindow inherits Window {
                         }
                     }
                 }
-                if root.vista == Vista.ajustes: VerticalLayout {
+                if root.vista == Vista.ajustes: ScrollView { VerticalLayout {
                     padding-top: 20px;
+                    padding-bottom: 28px;
                     padding-left: 22px;
                     padding-right: 22px;
                     spacing: 16px;
@@ -4538,6 +4770,241 @@ export component AppWindow inherits Window {
                                 : @tr("Normal, en la carpeta de datos del sistema. Con un portable.txt junto al launcher, todo se guardaría a su lado.");
                         }
                     }
+                    Subtitulo { text: @tr("Tus copias"); }
+                    VerticalLayout {
+                        spacing: 10px;
+                        Nota {
+                            text: @tr("Unricopie puede buscar en una carpeta tus copias de los juegos (ROM e ISO) y guardar en tu biblioteca las que coinciden con lo que pide cada proyecto. Solo cuenta el hash exacto, nunca el nombre del archivo, y tus archivos solo se leen.");
+                        }
+                        HorizontalLayout {
+                            alignment: start;
+                            spacing: 10px;
+                            Boton {
+                                text: @tr("Buscar en una carpeta…");
+                                activo: root.copias-fase != 1 && root.copias-fase != 3;
+                                clicked => { root.buscar-copias(); }
+                            }
+                            if root.copias-fase == 2 && root.copias.length > 0: Boton {
+                                text: root.copias-elegidas == 1 ? @tr("Guardar 1 copia") : @tr("Guardar {} copias", root.copias-elegidas);
+                                oro: true;
+                                activo: root.copias-elegidas > 0;
+                                clicked => { root.guardar-copias(); }
+                            }
+                            if root.copias-fase == 1 || root.copias-fase == 3: Boton {
+                                text: @tr("Cancelar");
+                                clicked => { root.cancelar-copias(); }
+                            }
+                        }
+                        if root.copias-fase == 1: Nota {
+                            text: root.copias-sub == 0 ? @tr("Mirando qué hay en {}…", root.copias-carpeta)
+                                : @tr("Leyendo {} de {} archivos ({} de {})…", root.copias-hechos, root.copias-total, root.copias-bytes, root.copias-bytes-total);
+                        }
+                        if root.copias-fase == 3: Nota { text: @tr("Guardando {} de {}…", root.copias-hechos, root.copias-total); }
+                        if root.copias-fase == 5: Nota { text: @tr("Cancelado. Lo que ya estaba guardado sigue en tu biblioteca."); }
+                        if root.copias-fase == 6: Nota { text: @tr("No se pudo buscar: {}.", Util.error(root.copias-error)); }
+                        if root.copias-fase == 2 && root.copias.length == 0: Nota {
+                            text: @tr("En {} no hay ninguna copia que coincida con lo que piden los proyectos.", root.copias-carpeta);
+                        }
+                        if root.copias-fase == 2 && root.copias.length > 0: Nota {
+                            text: root.copias.length == 1
+                                ? @tr("Encontré 1 en {}. Márcala si quieres guardarla: ocupa su tamaño en tu biblioteca.", root.copias-carpeta)
+                                : @tr("Encontré {} en {}. Marca las que quieras guardar: cada una ocupa su tamaño en tu biblioteca.", root.copias.length, root.copias-carpeta);
+                        }
+                        if root.copias-fase == 4: Nota { text: @tr("Listo. Cada juego guardado ya tiene su copia comprobada."); }
+                        if (root.copias-fase == 2 || root.copias-fase == 4) && root.copias.length > 0: Rectangle {
+                            border-radius: 6px;
+                            border-width: Paleta.bw;
+                            border-color: Paleta.line;
+                            clip: true;
+                            VerticalLayout {
+                                padding: Paleta.bw;
+                                for c[i] in root.copias: VerticalLayout {
+                                    if i > 0: Separador { }
+                                    HorizontalLayout {
+                                        padding: 10px;
+                                        spacing: 12px;
+                                        if root.copias-fase == 2: Casilla {
+                                            width: 20px;
+                                            text: "";
+                                            accessible-label: c.juego;
+                                            on: c.elegida;
+                                            toggled => { root.marcar-copia(i, !c.elegida); }
+                                        }
+                                        VerticalLayout {
+                                            spacing: 2px;
+                                            horizontal-stretch: 1;
+                                            Text {
+                                                text: c.proyecto != "" ? @tr("{} ({})", c.juego, c.proyecto) : c.juego;
+                                                color: Paleta.fg;
+                                                font-size: 13.5px;
+                                                font-weight: 700;
+                                                overflow: elide;
+                                            }
+                                            Text {
+                                                text: @tr("{}, {}", c.aceptada, c.tam);
+                                                color: Paleta.fg-2;
+                                                font-size: 12.6px;
+                                                overflow: elide;
+                                            }
+                                            Text {
+                                                text: c.ruta;
+                                                color: Paleta.fg-3;
+                                                font-size: 12px;
+                                                overflow: elide;
+                                            }
+                                        }
+                                        if c.resultado > 0: VerticalLayout {
+                                            alignment: center;
+                                            Text {
+                                                text: c.resultado == 1 ? @tr("Guardada")
+                                                    : c.resultado == 2 ? @tr("Ya la tenías")
+                                                    : c.resultado == 3 ? @tr("Repetida: ya guardé otra igual")
+                                                    : @tr("No se pudo: {}", Util.error(c.error));
+                                                color: c.resultado == 4 ? Paleta.bad : c.resultado == 1 ? Paleta.ok : Paleta.fg-3;
+                                                font-size: 12.6px;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if (root.copias-fase == 2 || root.copias-fase == 4) && root.copias-ya-guardadas > 0: Nota {
+                            text: root.copias-ya-guardadas == 1
+                                ? @tr("1 proyecto ya tenía su copia guardada y no se buscó.")
+                                : @tr("{} proyectos ya tenían su copia guardada y no se buscaron.", root.copias-ya-guardadas);
+                        }
+                        if (root.copias-fase == 2 || root.copias-fase == 4) && root.copias-carpeta-entera + root.copias-sin-hashes > 0: Nota {
+                            text: root.copias-carpeta-entera + root.copias-sin-hashes == 1
+                                ? @tr("Tampoco se buscó 1 proyecto que pide la carpeta entera del juego o cuya receta todavía no tiene hashes para comparar: elige esa copia en la página del juego.")
+                                : @tr("Tampoco se buscaron {} proyectos que piden la carpeta entera del juego o cuya receta todavía no tiene hashes para comparar: elige esas copias en la página de cada juego.", root.copias-carpeta-entera + root.copias-sin-hashes);
+                        }
+                    }
+                    Subtitulo { text: @tr("Añadir un proyecto de GitHub"); }
+                    VerticalLayout {
+                        spacing: 10px;
+                        Nota {
+                            text: @tr("Si un proyecto no está en el catálogo, escribe su repositorio de GitHub y Unricopie instala su última versión oficial con las comprobaciones de siempre: el hash que publica GitHub, el antivirus del equipo y el espacio en disco. Pero Unricopie no lo revisó: no sabe si funciona ni qué necesita, y no puede comprobar tu copia del juego.");
+                        }
+                        HorizontalLayout {
+                            alignment: start;
+                            spacing: 10px;
+                            campo-repo := Campo {
+                                width: 380px;
+                                placeholder: @tr("usuario/proyecto, o su dirección de GitHub");
+                                accepted => {
+                                    if self.text != "" && root.amano-fase != 1 && root.amano-fase != 4 {
+                                        root.amano-buscar(self.text);
+                                    }
+                                }
+                            }
+                            Boton {
+                                text: @tr("Buscar");
+                                activo: campo-repo.text != "" && root.amano-fase != 1 && root.amano-fase != 4;
+                                clicked => { root.amano-buscar(campo-repo.text); }
+                            }
+                            if root.amano-fase == 2: Boton {
+                                text: @tr("Instalar");
+                                oro: true;
+                                clicked => { root.amano-instalar(); }
+                            }
+                            if root.amano-fase == 8 && root.amano-juego != "": Boton {
+                                text: @tr("Abrir su página");
+                                clicked => { root.abrir(root.amano-juego); }
+                            }
+                        }
+                        if root.amano-fase == 1: Nota { text: @tr("Leyendo las versiones de {} en GitHub…", root.amano-repo); }
+                        if root.amano-fase == 2: Nota {
+                            text: @tr("{} {}: se bajaría {} ({}). El programa que abre el juego se busca después de descomprimirlo.", root.amano-repo, root.amano-version, root.amano-archivo, root.amano-tam);
+                        }
+                        if root.amano-fase == 3: Nota {
+                            text: root.amano-candidatos.length > 0
+                                ? @tr("En la versión {} de {} no hay un único archivo que diga ser de este sistema. Elige cuál instalar:", root.amano-version, root.amano-repo)
+                                : @tr("La versión {} de {} no trae ningún archivo que Unricopie pueda instalar en este sistema.", root.amano-version, root.amano-repo);
+                        }
+                        if root.amano-fase == 3 && root.amano-instaladores: Nota {
+                            text: @tr("Trae un instalador, y Unricopie no los usa: solo instala lo que se descomprime en tu biblioteca.");
+                        }
+                        if root.amano-fase == 4: Nota {
+                            text: root.amano-total != "" ? @tr("Instalando {}: {} de {}…", root.amano-archivo, root.amano-bajado, root.amano-total) : @tr("Instalando {}…", root.amano-archivo);
+                        }
+                        if root.amano-fase == 5: Nota {
+                            text: root.amano-candidatos.length > 0
+                                ? @tr("{} se bajó y pasó las comprobaciones, pero trae varios programas y no sé cuál abre el juego. Elige uno y se vuelve a bajar para instalarlo:", root.amano-archivo)
+                                : @tr("{} se bajó y pasó las comprobaciones, pero dentro no encuentro ningún programa que abrir. No se instaló nada.", root.amano-archivo);
+                        }
+                        if root.amano-fase == 3 || root.amano-fase == 5: VerticalLayout {
+                            spacing: 6px;
+                            for c in root.amano-candidatos: HorizontalLayout {
+                                alignment: start;
+                                Boton {
+                                    text: c;
+                                    clicked => { root.amano-elegir(c); }
+                                }
+                            }
+                        }
+                        if root.amano-fase == 6: Nota { text: @tr("Listo: {} {} quedó instalado y ya está en tu biblioteca.", root.amano-repo, root.amano-version); }
+                        if root.amano-fase == 7: Nota { text: @tr("No se pudo: {}.", Util.error(root.amano-error)); }
+                        if root.amano-fase == 8: Nota { text: @tr("{} ya está en el catálogo, y Unricopie lo instala con su receta revisada: es {}.", root.amano-repo, root.amano-nombre); }
+                        if root.amano-fase == 9: Nota { text: @tr("{} está en el catálogo como retirado, y Unricopie no lo instala.", root.amano-repo); }
+                        if root.amano-fase == 10: Nota { text: @tr("{} ya está añadido.", root.amano-repo); }
+                        if root.amano-lista.length > 0: Rectangle {
+                            border-radius: 6px;
+                            border-width: Paleta.bw;
+                            border-color: Paleta.line;
+                            clip: true;
+                            VerticalLayout {
+                                padding: Paleta.bw;
+                                for a[i] in root.amano-lista: VerticalLayout {
+                                    if i > 0: Separador { }
+                                    HorizontalLayout {
+                                        padding: 10px;
+                                        spacing: 12px;
+                                        VerticalLayout {
+                                            spacing: 2px;
+                                            horizontal-stretch: 1;
+                                            HorizontalLayout {
+                                                alignment: start;
+                                                if a.juego != "": Enlace {
+                                                    text: a.nombre;
+                                                    font-size: 13.5px;
+                                                    font-weight: 700;
+                                                    clicked => { root.abrir(a.juego); }
+                                                }
+                                                if a.juego == "": Text {
+                                                    text: a.nombre;
+                                                    color: Paleta.fg;
+                                                    font-size: 13.5px;
+                                                    font-weight: 700;
+                                                }
+                                            }
+                                            Text {
+                                                text: !a.en-uso ? @tr("github.com/{} · ya no hace falta: el catálogo trae ahora su receta", a.repo)
+                                                    : a.instalado ? @tr("github.com/{} · instalado, {}", a.repo, a.version)
+                                                    : @tr("github.com/{} · sin instalar", a.repo);
+                                                color: Paleta.fg-2;
+                                                font-size: 12.6px;
+                                                overflow: elide;
+                                            }
+                                            if a.instalado && a.en-uso: Text {
+                                                text: @tr("Para quitarlo de esta lista, borra antes su carpeta: {}", a.carpeta);
+                                                color: Paleta.fg-3;
+                                                font-size: 12px;
+                                                overflow: elide;
+                                            }
+                                        }
+                                        VerticalLayout {
+                                            alignment: center;
+                                            Boton {
+                                                text: @tr("Quitar");
+                                                activo: !(a.instalado && a.en-uso);
+                                                clicked => { root.amano-quitar(a.entry); }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     Subtitulo { text: "Unricopie"; }
                     VerticalLayout {
                         spacing: 6px;
@@ -4552,7 +5019,7 @@ export component AppWindow inherits Window {
                             clicked => { root.abrir-enlace(root.version-pagina); }
                         }
                     }
-                }
+                } }
                 // Desde Explorar, la ficha de tienda; desde la biblioteca, la del juego.
                 if root.vista == Vista.juego && root.desde == Vista.explorar && root.actual.proyectos.length > 0: PaginaTienda {
                     j: root.actual;
@@ -4595,6 +5062,8 @@ export component AppWindow inherits Window {
                     opinar(e, r) => { root.opinar(e, r); }
                     actualizar(e) => { root.actualizar(e); }
                     volver(e, id) => { root.volver(e, id); }
+                    ver-versiones(e) => { root.ver-versiones(e); }
+                    instalar-version(e, t) => { root.instalar-version(e, t); }
                     borrar-anterior(e, id) => { root.borrar-anterior(e, id); }
                 }
             }

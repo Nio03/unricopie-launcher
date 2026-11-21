@@ -3,12 +3,15 @@
 //! cómo va con `Aviso`, que la ventana recibe en su propio hilo. No se mandan frases: códigos y
 //! datos, y la ventana los escribe en el idioma elegido (`Util.aviso` en app.slint).
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
+use std::process::Child;
 use std::sync::mpsc::{self, Sender};
 use std::time::{Duration, Instant};
 
 use unricopie_nucleo::install::{self, copy, launch, place, portable, settings, update, Channel, Library, Plan, Platform, Portability, Recipe, Status};
 use unricopie_nucleo::mods::sources::{self, RemoteMod};
+use unricopie_nucleo::net::Downloaded;
 use unricopie_nucleo::{net, Error};
 
 use crate::errores::{self, Datos};
@@ -65,14 +68,43 @@ pub enum Aviso {
     Ultimas(HashMap<String, String>),
     /// Llegó el README o el registro de cambios de un mod (en Markdown), o no se pudo leer.
     Readme { id: String, que: crate::ficha_mod::Que, md: Option<String> },
+    /// «Tus copias» (`copias.rs`): cómo va la búsqueda o el guardado.
+    CopiasAvance(crate::copias::Avance),
+    /// Terminó de buscar: lo encontrado, y las recetas buscadas para poder guardar después.
+    CopiasHalladas { buscadas: Vec<install::scan::Wanted>, resultado: crate::copias::Resultado },
+    /// Terminó de guardar las copias elegidas.
+    CopiasGuardadas(crate::copias::Guardado),
+    /// Las versiones publicadas de un proyecto con un archivo para este sistema (pestaña
+    /// Versiones), o por qué no se pudieron leer.
+    Versiones { entry: String, lista: Result<Vec<install::Version>, Datos> },
+    /// «Añadir un proyecto de GitHub» (`amano.rs`): las releases del repo, o por qué no se leyeron.
+    AManoVersiones { repo: String, releases: Result<Vec<install::release::GhRelease>, Error> },
+    /// Cómo va la descarga de lo que se está añadiendo.
+    AManoAvance { bajado: u64, total: Option<u64> },
+    /// Terminó de instalarlo: la versión que quedó, o el error (`Error::ChooseRun` si hay que
+    /// elegir el programa).
+    AManoHecho(Result<String, Error>),
+}
+
+/// Lee de GitHub las versiones de `receta` que traen un archivo para este sistema.
+pub fn pedir_versiones(entry: String, receta: Recipe) {
+    std::thread::spawn(move || {
+        let lista = Platform::current()
+            .ok_or(Error::UnknownSystem)
+            .and_then(|host| install::versions(&net::agent(), &receta, None, host))
+            .map_err(|e| errores::de(&e));
+        avisar(Aviso::Versiones { entry, lista });
+    });
 }
 
 /// Lo que baja la cola: un juego, la versión nueva de un juego o un mod.
 pub enum Tarea {
-    Juego(String, Recipe),
+    /// Con una etiqueta, esa versión en vez de la última («Instalar esta» en Versiones).
+    Juego(String, Recipe, Option<String>),
     /// Si el juego tiene mods (`mods`), la versión bajada se aplica en el hilo de los mods, que
-    /// antes los quita y después los vuelve a poner.
-    Actualizar { entry: String, receta: Recipe, mods: Option<Box<crate::mods::Ctx>> },
+    /// antes los quita y después los vuelve a poner. Con `version`, pasa a esa (más nueva o más
+    /// vieja) por el mismo camino que una actualización.
+    Actualizar { entry: String, receta: Recipe, mods: Option<Box<crate::mods::Ctx>>, version: Option<String> },
     /// `bajada` es su clave en la lista de descargas (`mods::bajada`).
     Mod { ctx: crate::mods::Ctx, remoto: RemoteMod, bajada: String },
 }
@@ -137,11 +169,11 @@ pub fn cola(biblioteca: Library, launcher_portable: bool, mods: Sender<crate::mo
         let agent = net::agent();
         for tarea in rx {
             match tarea {
-                Tarea::Juego(entry, receta) => match instalar(&agent, &biblioteca, launcher_portable, &entry, &receta) {
+                Tarea::Juego(entry, receta, version) => match instalar(&agent, &biblioteca, launcher_portable, &entry, &receta, version.as_deref()) {
                     Ok(error) => avisar(Aviso::Instalado { entry, error: error.as_ref().map(errores::de) }),
                     Err(e) => avisar(Aviso::Fallo { entry, error: errores::de(&e) }),
                 },
-                Tarea::Actualizar { entry, receta, mods: con_mods } => match bajar_version(&agent, &biblioteca, &entry, &receta) {
+                Tarea::Actualizar { entry, receta, mods: con_mods, version } => match bajar_version(&agent, &biblioteca, &entry, &receta, version.as_deref()) {
                     // Ya estaba al día (alguien actualizó por su cuenta): no hay nada que hacer.
                     Err(Error::UpToDate(_)) => avisar(Aviso::Instalado { entry, error: None }),
                     Err(e) => avisar(Aviso::Fallo { entry, error: errores::de(&e) }),
@@ -152,14 +184,10 @@ pub fn cola(biblioteca: Library, launcher_portable: bool, mods: Sender<crate::mo
                                 avisar(Aviso::Fallo { entry, error: errores::Datos::default() });
                             }
                         }
-                        None => {
-                            let r = update::update_downloaded(&biblioteca, &plan, &archivo, &bajado);
-                            let _ = std::fs::remove_file(&archivo);
-                            match r {
-                                Ok(_) => avisar(Aviso::Instalado { entry, error: None }),
-                                Err(e) => avisar(Aviso::Fallo { entry, error: errores::de(&e) }),
-                            }
-                        }
+                        None => match aplicar_version(&biblioteca, &plan, &archivo, &bajado, None) {
+                            Ok(()) => avisar(Aviso::Instalado { entry, error: None }),
+                            Err(e) => avisar(Aviso::Fallo { entry, error: errores::de(&e) }),
+                        },
                     },
                 },
                 Tarea::Mod { ctx, remoto, bajada } => match bajar_mod(&agent, &ctx, &remoto, &bajada) {
@@ -196,21 +224,51 @@ fn bajar_mod(agent: &ureq::Agent, ctx: &crate::mods::Ctx, remoto: &RemoteMod, ba
 }
 
 /// Devuelve el error de hacerlo portable, si lo hubo (el juego queda instalado igual).
-fn instalar(agent: &ureq::Agent, biblioteca: &Library, launcher_portable: bool, entry: &str, receta: &Recipe) -> Result<Option<Error>, Error> {
+fn instalar(agent: &ureq::Agent, biblioteca: &Library, launcher_portable: bool, entry: &str, receta: &Recipe, version: Option<&str>) -> Result<Option<Error>, Error> {
+    let mut plan_listo = |plan: &Plan| avisar(Aviso::Plan { entry: entry.to_string(), version: plan.version.clone(), total: plan.size });
+    instalar_con(agent, biblioteca, launcher_portable, receta, version, &mut plan_listo, &mut contar(entry)).map(|(_, error)| error)
+}
+
+/// Qué se baja: la última release oficial o, con `version`, la de esa etiqueta (una anterior,
+/// o una prerelease), con las mismas comprobaciones.
+pub fn planear(agent: &ureq::Agent, biblioteca: &Library, receta: &Recipe, version: Option<&str>) -> Result<Plan, Error> {
     let host = Platform::current().ok_or(Error::UnknownSystem)?;
-    // Sin datos del banco de pruebas todavía, se baja la última release oficial (sin probar).
-    let plan = install::plan(agent, receta, None, host, Channel::Untested, None, biblioteca)?;
-    avisar(Aviso::Plan { entry: entry.to_string(), version: plan.version.clone(), total: plan.size });
-    install::install(agent, biblioteca, &plan, &mut contar(entry))?;
-    // Con el launcher en modo portable, cada juego que se instala también lo es, si se puede.
+    match version {
+        Some(tag) => install::plan_tag(agent, receta, None, host, tag, biblioteca),
+        // Sin datos del banco de pruebas todavía, se baja la última release oficial (sin probar).
+        None => install::plan(agent, receta, None, host, Channel::Untested, None, biblioteca),
+    }
+}
+
+/// Instala la última release oficial (o la de `version`): lo mismo para el botón Instalar y
+/// para `unricopie install`. `plan_listo` se llama cuando ya se sabe qué se baja y `progreso`,
+/// mientras baja. Devuelve lo instalado y el error de hacerlo portable, si lo hubo (queda
+/// instalado igual).
+pub fn instalar_con(
+    agent: &ureq::Agent,
+    biblioteca: &Library,
+    launcher_portable: bool,
+    receta: &Recipe,
+    version: Option<&str>,
+    plan_listo: &mut dyn FnMut(&Plan),
+    progreso: &mut dyn FnMut(u64, Option<u64>),
+) -> Result<(Plan, Option<Error>), Error> {
+    let plan = planear(agent, biblioteca, receta, version)?;
+    plan_listo(&plan);
+    install::install(agent, biblioteca, &plan, progreso)?;
+    let error = hacer_portable(launcher_portable, &plan, receta);
+    Ok((plan, error))
+}
+
+/// Con el launcher en modo portable, cada juego que se instala también lo es, si se puede.
+/// Devuelve el error, si no se pudo.
+pub(crate) fn hacer_portable(launcher_portable: bool, plan: &Plan, receta: &Recipe) -> Option<Error> {
     if launcher_portable {
         if let Portability::Rule(_) = receta.portability(plan.platform) {
-            if let Err(e) = portable::enable(&plan.dest, receta) {
-                return Ok(Some(e));
-            }
+            return portable::enable(&plan.dest, receta).err();
         }
     }
-    Ok(None)
+    None
 }
 
 /// Cuenta cómo va la descarga de `entry`: un aviso cada 150 ms como mucho, y siempre el último.
@@ -226,12 +284,62 @@ fn contar(entry: &str) -> impl FnMut(u64, Option<u64>) + '_ {
 }
 
 /// Baja la versión nueva de un juego instalado, sin tocar lo instalado todavía.
-fn bajar_version(agent: &ureq::Agent, biblioteca: &Library, entry: &str, receta: &Recipe) -> Result<(Plan, PathBuf, unricopie_nucleo::net::Downloaded), Error> {
-    let host = Platform::current().ok_or(Error::UnknownSystem)?;
-    let plan = install::plan(agent, receta, None, host, Channel::Untested, None, biblioteca)?;
-    avisar(Aviso::Plan { entry: entry.to_string(), version: plan.version.clone(), total: plan.size });
-    let (archivo, bajado) = update::download(agent, biblioteca, &plan, &mut contar(entry))?;
+fn bajar_version(agent: &ureq::Agent, biblioteca: &Library, entry: &str, receta: &Recipe, version: Option<&str>) -> Result<(Plan, PathBuf, Downloaded), Error> {
+    let mut plan_listo = |plan: &Plan| avisar(Aviso::Plan { entry: entry.to_string(), version: plan.version.clone(), total: plan.size });
+    bajar_version_con(agent, biblioteca, receta, version, &mut plan_listo, &mut contar(entry))
+}
+
+/// `bajar_version`, contando cómo va a quien lo pida (la ventana o la línea de órdenes). Con
+/// `version`, la de esa etiqueta en vez de la última: también una anterior a la instalada.
+fn bajar_version_con(
+    agent: &ureq::Agent,
+    biblioteca: &Library,
+    receta: &Recipe,
+    version: Option<&str>,
+    plan_listo: &mut dyn FnMut(&Plan),
+    progreso: &mut dyn FnMut(u64, Option<u64>),
+) -> Result<(Plan, PathBuf, Downloaded), Error> {
+    let plan = planear(agent, biblioteca, receta, version)?;
+    plan_listo(&plan);
+    let (archivo, bajado) = update::download(agent, biblioteca, &plan, progreso)?;
     Ok((plan, archivo, bajado))
+}
+
+/// Aplica la versión ya bajada y borra lo bajado. Con mods (`con_mods`), antes se quitan y
+/// después se vuelven a poner, salga bien o mal, como hace el hilo de los mods.
+pub(crate) fn aplicar_version(biblioteca: &Library, plan: &Plan, archivo: &Path, bajado: &Downloaded, con_mods: Option<&crate::mods::Ctx>) -> Result<(), Error> {
+    match con_mods {
+        Some(ctx) => {
+            let r = crate::mods::cambiar_version(ctx, biblioteca, plan, archivo, bajado);
+            let puestos = crate::mods::aplicar(ctx);
+            r.and(puestos)
+        }
+        None => {
+            let r = update::update_downloaded(biblioteca, plan, archivo, bajado);
+            let _ = std::fs::remove_file(archivo);
+            r.map(|_| ())
+        }
+    }
+}
+
+/// Actualiza un juego instalado de una vez, sin la cola ni el hilo de los mods: lo que hace
+/// «Actualizar a …», para `unricopie update`. Si ya está al día, `Error::UpToDate`.
+///
+/// Con `version` lo deja en la de esa etiqueta, sea más nueva o más vieja que la instalada. Es
+/// el mismo camino (`update::update_downloaded`): la que había queda guardada entera para
+/// volver a ella, y las partidas y los ajustes pasan a la que se pone.
+pub fn actualizar(
+    agent: &ureq::Agent,
+    biblioteca: &Library,
+    receta: &Recipe,
+    version: Option<&str>,
+    con_mods: Option<&crate::mods::Ctx>,
+    plan_listo: &mut dyn FnMut(&Plan),
+    progreso: &mut dyn FnMut(u64, Option<u64>),
+) -> Result<Plan, Error> {
+    let (plan, archivo, bajado) = bajar_version_con(agent, biblioteca, receta, version, plan_listo, progreso)?;
+    aplicar_version(biblioteca, &plan, &archivo, &bajado, con_mods)?;
+    Ok(plan)
 }
 
 /// Mira, en un hilo, la última versión oficial de cada juego instalado. Lo que no se puede
@@ -309,15 +417,8 @@ pub fn guardar_copia(biblioteca: Library, receta: Recipe, origen: PathBuf) {
 /// de esa versión, `tiempo::clave`), cuenta cuánto se juega, para «¿Cómo te fue?».
 pub fn jugar(biblioteca: Library, receta: Recipe, dir: PathBuf, nombre: String, tiempo: Option<(PathBuf, String)>) {
     std::thread::spawn(move || {
-        let r = (|| -> Result<(bool, bool, std::process::Child), Error> {
-            let puesto = place::place(&biblioteca, &dir, &receta)?;
-            let aplicado = settings::apply(&dir, &receta)?;
-            let l = launch::prepare(&biblioteca, &dir, &receta)?;
-            let hijo = l.command().spawn().map_err(|e| Error::CannotLaunch(l.program.clone(), e.to_string()))?;
-            Ok((puesto.no_copy, !aplicado.reapplied.is_empty(), hijo))
-        })();
-        let mut hijo = match r {
-            Ok((sin_copia, actualizador, hijo)) => {
+        let mut hijo = match abrir(&biblioteca, &receta, &dir, &[]) {
+            Ok(Abierto { sin_copia, actualizador, hijo }) => {
                 let c = match (sin_copia, actualizador) {
                     (false, false) => codigo::ABRIENDO,
                     (true, false) => codigo::ABRIENDO_SIN_COPIA,
@@ -333,7 +434,33 @@ pub fn jugar(biblioteca: Library, receta: Recipe, dir: PathBuf, nombre: String, 
         // Ya se abrió una vez: «No arranca» se puede marcar desde ahora.
         crate::tiempo::abierto(&raiz, &clave);
         avisar(Aviso::Refrescar);
-        crate::tiempo::medir(&mut hijo, Duration::from_secs(60), |s| crate::tiempo::sumar(&raiz, &clave, s));
+        contar_tiempo(&mut hijo, &raiz, &clave);
         avisar(Aviso::Refrescar);
     });
+}
+
+/// Un juego recién abierto.
+pub struct Abierto {
+    /// Se abrió sin la copia del jugador: todavía no la dio.
+    pub sin_copia: bool,
+    /// Hubo que volver a apagar su actualizador propio.
+    pub actualizador: bool,
+    pub hijo: Child,
+}
+
+/// Le da al juego la copia, apaga su actualizador y lo abre con lo que diga su receta (modo
+/// portable, argumentos, variables, su carpeta como carpeta de trabajo). Lo mismo para el botón
+/// Jugar y para `unricopie launch`, que añade al final sus propios argumentos (`extra`).
+pub fn abrir(biblioteca: &Library, receta: &Recipe, dir: &Path, extra: &[OsString]) -> Result<Abierto, Error> {
+    let puesto = place::place(biblioteca, dir, receta)?;
+    let aplicado = settings::apply(dir, receta)?;
+    let mut l = launch::prepare(biblioteca, dir, receta)?;
+    l.args.extend(extra.iter().cloned());
+    let hijo = l.command().spawn().map_err(|e| Error::CannotLaunch(l.program.clone(), e.to_string()))?;
+    Ok(Abierto { sin_copia: puesto.no_copy, actualizador: !aplicado.reapplied.is_empty(), hijo })
+}
+
+/// Espera a que el juego se cierre, sumando lo jugado a `clave` cada minuto (`tiempo::medir`).
+pub fn contar_tiempo(hijo: &mut Child, raiz: &Path, clave: &str) {
+    crate::tiempo::medir(hijo, Duration::from_secs(60), |s| crate::tiempo::sumar(raiz, clave, s));
 }

@@ -8,9 +8,11 @@
 //!   carga y un solucionador que dice cuál es el conflicto.
 //! - `root`: dónde guarda Unricopie lo suyo, en la carpeta del sistema o, en modo portable,
 //!   junto al launcher.
+//! - `antivirus`: analizar lo bajado con el antivirus del equipo (Microsoft Defender en Windows).
 //! - `archive`, `net` y `path`: descomprimir, bajar y validar rutas, para los dos.
 #![forbid(unsafe_code)]
 
+pub mod antivirus;
 pub mod archive;
 pub mod error;
 pub mod install;

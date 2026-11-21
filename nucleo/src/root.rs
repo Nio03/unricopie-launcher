@@ -30,17 +30,16 @@ pub struct Root {
 impl Root {
     /// La de este launcher.
     pub fn find() -> Result<Root> {
-        let exe = std::env::current_exe().map_err(|e| Error::io("current_exe", e))?;
-        let flatpak = std::env::var_os("FLATPAK_ID").is_some() || Path::new("/.flatpak-info").exists();
-        // El runtime de AppImage monta la app en APPDIR y dice en APPIMAGE dónde está el
-        // archivo. Solo vale si este ejecutable está dentro: si no, son de otra AppImage que
-        // abrió el launcher.
-        let appimage = match (std::env::var_os("APPIMAGE"), std::env::var_os("APPDIR")) {
-            (Some(file), Some(mount)) if exe.starts_with(&mount) => Some(PathBuf::from(file)),
-            _ => None,
-        };
+        let (exe, appimage, flatpak) = launcher()?;
         Root::locate(&exe, appimage.as_deref(), flatpak, system_dir())
             .ok_or(Error::NoDataDir)
+    }
+
+    /// La de este launcher en modo portable aunque no haya `portable.txt` (`unricopie
+    /// --portable`): la carpeta donde la persona lo ve. En Flatpak no hay.
+    pub fn find_portable() -> Result<Root> {
+        let (exe, appimage, flatpak) = launcher()?;
+        Root::locate_portable(&exe, appimage.as_deref(), flatpak).ok_or(Error::NoDataDir)
     }
 
     /// `find` sin mirar el entorno, para probarlo.
@@ -55,9 +54,32 @@ impl Root {
         system.map(|path| Root { path, portable: false })
     }
 
+    /// `find_portable` sin mirar el entorno, para probarlo.
+    pub fn locate_portable(exe: &Path, appimage: Option<&Path>, flatpak: bool) -> Option<Root> {
+        if flatpak {
+            return None;
+        }
+        beside(exe, appimage).map(|path| Root { path, portable: true })
+    }
+
     pub fn library(&self) -> Library {
         Library::new(&self.path)
     }
+}
+
+/// Lo que hace falta saber de este launcher: su ejecutable, el archivo de la AppImage si va
+/// dentro de una y si está en Flatpak.
+fn launcher() -> Result<(PathBuf, Option<PathBuf>, bool)> {
+    let exe = std::env::current_exe().map_err(|e| Error::io("current_exe", e))?;
+    let flatpak = std::env::var_os("FLATPAK_ID").is_some() || Path::new("/.flatpak-info").exists();
+    // El runtime de AppImage monta la app en APPDIR y dice en APPIMAGE dónde está el
+    // archivo. Solo vale si este ejecutable está dentro: si no, son de otra AppImage que
+    // abrió el launcher.
+    let appimage = match (std::env::var_os("APPIMAGE"), std::env::var_os("APPDIR")) {
+        (Some(file), Some(mount)) if exe.starts_with(&mount) => Some(PathBuf::from(file)),
+        _ => None,
+    };
+    Ok((exe, appimage, flatpak))
 }
 
 /// La carpeta donde la persona ve el launcher.
@@ -100,6 +122,17 @@ mod tests {
         assert_eq!(r.library().games, exe.parent().unwrap().join("games"));
         // En Flatpak, nunca.
         assert!(!Root::locate(&exe, None, true, sys).unwrap().portable);
+        assert_eq!(Root::locate_portable(&exe, None, true), None);
+    }
+
+    #[test]
+    fn portable_a_pedido_sin_marcador() {
+        let t = tempfile::tempdir().unwrap();
+        let exe = t.path().join("Unricopie").join("unricopie.exe");
+        // Sin `portable.txt`: la carpeta del launcher, igual que si estuviera.
+        assert_eq!(Root::locate_portable(&exe, None, false).unwrap(), Root { path: exe.parent().unwrap().to_path_buf(), portable: true });
+        let appimage = t.path().join("Unricopie.AppImage");
+        assert_eq!(Root::locate_portable(Path::new("/tmp/.mount_X/usr/bin/unricopie"), Some(&appimage), false).unwrap().path, t.path());
     }
 
     #[test]

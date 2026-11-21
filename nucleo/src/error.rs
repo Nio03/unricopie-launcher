@@ -40,6 +40,8 @@ pub enum Error {
     NoPlatform { entry: String, platform: String },
     #[error("{repo} no tiene ninguna versión en el canal {channel}")]
     NoRelease { repo: String, channel: Channel },
+    #[error("{repo} no tiene ninguna versión con la etiqueta {tag}")]
+    NoSuchRelease { repo: String, tag: String },
     #[error("la versión {tag} no trae ningún archivo que encaje con «{pattern}»")]
     NoAsset { tag: String, pattern: String },
     #[error("la versión {tag} trae varios archivos que encajan con «{pattern}»: {matches:?}")]
@@ -56,6 +58,24 @@ pub enum Error {
     PackageLayout(String),
     #[error("los dmg solo se abren en macOS: {0}")]
     DmgOnlyMac(PathBuf),
+    /// Antes de bajar o de descomprimir: en el disco de `path` hacen falta `needed` bytes y hay
+    /// `free`.
+    #[error("no hay espacio en {path}: hacen falta {needed} bytes y hay {free} libres")]
+    NoSpace { path: PathBuf, needed: u64, free: u64 },
+    /// El antivirus del equipo encontró algo en lo bajado (`file`, el nombre del archivo), que ya
+    /// se borró. `threat` es el nombre que le da, vacío si no lo dijo.
+    #[error("el antivirus del equipo encontró {} en {file}", if threat.is_empty() { "una amenaza" } else { threat.as_str() })]
+    Threat { file: String, threat: String },
+    /// Añadir a mano (`install::added`): lo escrito no es `owner/repo` ni una dirección de GitHub.
+    #[error("no es un repositorio de GitHub: {0}")]
+    BadRepo(String),
+    /// GitHub dice que ese repo no existe: está mal escrito, es privado o el proyecto se fue.
+    #[error("GitHub no tiene ningún repositorio público {0}")]
+    NoSuchRepo(String),
+    /// Añadir a mano: ya está bajado y descomprimido, pero no se sabe qué programa abre el juego.
+    /// `candidates` son los que hay (rutas dentro de la carpeta del juego); vacío si ninguno.
+    #[error("no se sabe qué programa abre el juego; puede ser: {candidates:?}")]
+    ChooseRun { candidates: Vec<String> },
     #[error("este sistema todavía no tiene versión")]
     UnknownSystem,
     #[error("no se encuentra la carpeta de datos del sistema")]
@@ -97,10 +117,21 @@ pub enum Error {
     CannotLaunch(PathBuf, String),
     #[error("la receta no dice qué ejecutable abrir en {0}")]
     NoRunInRecipe(PathBuf),
-    #[error("abrir una app de macOS todavía no se hace: {0}")]
+    #[error("no se encuentra el programa dentro de la app de macOS {0}")]
     MacAppNotYet(PathBuf),
     #[error("no está {0}")]
     RunMissing(PathBuf),
+    /// Linux: los sonames que `ldd` no encuentra y, si se conoce su paquete, la orden que los
+    /// instala (`hint`, vacío si no).
+    #[error("a {program} le faltan librerías del sistema: {}{}", libs.join(", "), if hint.is_empty() { String::new() } else { format!(" ({hint})") })]
+    MissingLibraries { program: PathBuf, libs: Vec<String>, hint: String },
+    /// Windows: las DLL de Visual C++ que importa el juego y no están ni en su carpeta ni en la
+    /// del sistema, y de dónde se baja el instalador de Microsoft que las trae (`url`).
+    #[error("a {program} le faltan las librerías de Visual C++: {} (se instalan con {url})", libs.join(", "))]
+    MissingRuntime { program: PathBuf, libs: Vec<String>, url: String },
+    /// Windows: el juego importa `vulkan-1.dll` y no está. La instala el controlador de la gráfica.
+    #[error("a {program} le falta Vulkan (vulkan-1.dll): se instala al actualizar el controlador de la tarjeta gráfica")]
+    MissingVulkan { program: PathBuf },
 
     // La copia del jugador.
     #[error("tu copia no es ninguna de las que acepta {0}")]

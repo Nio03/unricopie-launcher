@@ -14,17 +14,25 @@
 //! - `UNRICOPIE_PRUEBA_ACTUALIZAR=<ficha>`: actualiza ese juego en cuanto se sabe su última
 //!   versión, como «Actualizar a …»; `UNRICOPIE_PRUEBA_VOLVER=<ficha>`: al abrir, vuelve a su
 //!   versión anterior más reciente, como «Volver a esta».
+//! - `UNRICOPIE_PRUEBA_AMANO=<repo>`: busca ese repo en «Añadir un proyecto de GitHub», como
+//!   escribirlo en Ajustes y pulsar «Buscar».
 //! - `UNRICOPIE_VISTA`: `biblioteca`, `explorar[:mods][:todos]`, `descargas`, `ajustes`, `tienda:<id>` o `juego:<id>[:<pestaña>[:buscar]]` (`buscar`: «Buscar mods» en la pestaña Mods).
 //! - `UNRICOPIE_TEMA`: `noche`, `dia` o `contraste`; `UNRICOPIE_IDIOMA`: `es` o `en`. Los dos
 //!   valen solo para esa vez (no se guardan).
+//!
+//! Con argumentos no se abre la ventana: es la línea de órdenes (`cli.rs`).
 // `deny` y no `forbid`: el código que genera Slint usa `unsafe` por dentro y lo permite para sí;
-// en el nuestro sigue prohibido.
+// en el nuestro sigue prohibido, salvo en `consola::conectar` (la consola de Windows).
 #![deny(unsafe_code)]
 // Sin consola en Windows al abrirlo con doble clic (en debug sí, para ver los errores).
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 mod ajustes;
+mod amano;
 mod catalogo;
+mod cli;
+mod consola;
+mod copias;
 mod datos;
 mod errores;
 mod explorar;
@@ -35,13 +43,17 @@ mod tiempo;
 mod trabajo;
 
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 
 use slint::{Color, Image, Model, ModelRc, SharedString, VecModel};
 use trabajo::{codigo, Aviso, Tarea};
-use unricopie_nucleo::install::Library;
+use unricopie_nucleo::install::scan::{Match, Outcome, Why, Wanted};
+use unricopie_nucleo::antivirus::{Reason, Scan};
+use unricopie_nucleo::install::{copy, Library, Version};
 use unricopie_nucleo::mods::sources::RemoteMod;
 use unricopie_nucleo::mods::{ModId, RelPath};
 use unricopie_nucleo::root::Root;
@@ -51,6 +63,19 @@ slint::include_modules!();
 fn hex(c: &str) -> Color {
     let v = u32::from_str_radix(c.trim_start_matches('#'), 16).unwrap_or(0x5d6a99);
     Color::from_rgb_u8((v >> 16) as u8, (v >> 8) as u8, v as u8)
+}
+
+/// Lo que pesa un archivo o una carpeta con todo lo de dentro. No sigue enlaces: lo enlazado
+/// ya cuenta donde está.
+fn peso(ruta: &Path) -> u64 {
+    let Ok(m) = std::fs::symlink_metadata(ruta) else { return 0 };
+    if m.is_file() {
+        return m.len();
+    }
+    if !m.is_dir() {
+        return 0;
+    }
+    std::fs::read_dir(ruta).map(|it| it.flatten().map(|e| peso(&e.path())).sum()).unwrap_or(0)
 }
 
 /// Tamaños como los dice la gente: «350 MB», «2,2 GB» (con punto en inglés).
@@ -139,6 +164,16 @@ struct Estado {
     ficha_mod: Option<(String, String)>,
     /// El proyecto que está cambiando de versión y la versión guardada a la que pasa.
     cambiando: Option<(String, String)>,
+    /// «Tus copias»: las recetas buscadas, lo encontrado (en el orden de la lista de la ventana)
+    /// y la orden de parar el hilo que busca o guarda.
+    copias_buscadas: Vec<Wanted>,
+    copias_halladas: Vec<Match>,
+    copias_cortar: Arc<AtomicBool>,
+    /// Las versiones publicadas de cada proyecto (pestaña Versiones), y las que se están leyendo.
+    versiones_gh: HashMap<String, Result<Vec<Version>, errores::Datos>>,
+    versiones_pidiendo: HashSet<String>,
+    /// «Añadir un proyecto de GitHub»: lo que se está añadiendo (`amano.rs`).
+    amano: Option<amano::Pendiente>,
 }
 
 thread_local! {
@@ -302,6 +337,7 @@ impl Estado {
                     autor: p.e.autor.as_str().into(),
                     repo: p.e.repo.as_str().into(),
                     nivel: p.nivel(),
+                    a_mano: p.e.a_mano,
                     recomendado: p.e.recomendado,
                     motivo: p.e.motivo.en(idioma).into(),
                     desc: p.e.desc.en(idioma).into(),
@@ -337,8 +373,71 @@ impl Estado {
                     canal: inst.map_or(1, |(_, r)| errores::canal(r.channel)),
                     carpeta: inst.map(|(d, _)| d.display().to_string()).unwrap_or_default().into(),
                     portable: inst.is_some_and(|(_, r)| r.portable.is_some()),
-                    op_abierto: jugado.is_some(),
-                    op_listo: jugado.is_some_and(|t| t.listo(ahora)),
+                    copia_uso: p.uso_copia(inst.is_some_and(|(_, r)| r.portable.is_some())),
+                    gh_estado: if self.versiones_pidiendo.contains(&p.e.entry) {
+                        1
+                    } else {
+                        match self.versiones_gh.get(&p.e.entry) {
+                            None => 0,
+                            Some(Ok(_)) => 2,
+                            Some(Err(_)) => 3,
+                        }
+                    },
+                    gh_error: match self.versiones_gh.get(&p.e.entry) {
+                        Some(Err(e)) => error_ui(e),
+                        _ => ErrorUi::default(),
+                    },
+                    gh: ModelRc::new(VecModel::from(match (imagenes, self.versiones_gh.get(&p.e.entry)) {
+                        (true, Some(Ok(lista))) => {
+                            // «La última»: la primera que no es de prueba (vienen de la más nueva a la más vieja).
+                            let ultima = lista.iter().position(|v| !v.prerelease);
+                            lista
+                                .iter()
+                                .enumerate()
+                                .map(|(i, v)| VersionGh {
+                                    tag: v.tag.as_str().into(),
+                                    // GitHub da la fecha con la hora (`2024-02-06T15:30:00Z`): solo cuenta el día.
+                                    fecha: v.published_at.as_deref().map(|f| fecha_iso(f.get(..10).unwrap_or(f), idioma)).unwrap_or_default().into(),
+                                    tam: v.size.map(|b| tam(b, idioma)).unwrap_or_default().into(),
+                                    prueba: v.prerelease,
+                                    instalada: inst.is_some_and(|(_, r)| r.version == v.tag),
+                                    ultima: Some(i) == ultima,
+                                })
+                                .collect()
+                        }
+                        _ => Vec::new(),
+                    })),
+                    analisis: match inst.and_then(|(_, r)| r.scan.as_ref()) {
+                        None => 0,
+                        Some(Scan::Clean { .. }) => 1,
+                        Some(Scan::NotScanned { .. }) => 2,
+                    },
+                    analisis_escaner: match inst.and_then(|(_, r)| r.scan.as_ref()) {
+                        Some(Scan::Clean { scanner }) => scanner.as_str().into(),
+                        _ => SharedString::new(),
+                    },
+                    analisis_motivo: match inst.and_then(|(_, r)| r.scan.as_ref()) {
+                        Some(Scan::NotScanned { reason }) => match reason {
+                            Reason::NoScanner => 0,
+                            Reason::Disabled => 1,
+                            Reason::Timeout => 2,
+                            Reason::Failed => 3,
+                            Reason::Unknown => 4,
+                        },
+                        _ => 0,
+                    },
+                    // Lo que ocupa en disco, solo en el juego abierto (recorre carpetas).
+                    ocupa_juego: match (imagenes, inst) {
+                        (true, Some((dir, _))) => tam(peso(dir), idioma).into(),
+                        _ => SharedString::new(),
+                    },
+                    ocupa_copia: match (imagenes, &self.biblioteca, &p.receta) {
+                        (true, Some(b), Some(r)) => copy::imported(b, r, None).map(|i| tam(peso(&i.path), idioma)).unwrap_or_default().into(),
+                        _ => SharedString::new(),
+                    },
+                    // «¿Cómo te fue?» es para las fichas del catálogo: lo añadido a mano no pregunta.
+                    op_abierto: jugado.is_some() && !p.e.a_mano,
+                    op_listo: jugado.is_some_and(|t| t.listo(ahora)) && !p.e.a_mano,
                     op_total: op.total,
                     op_bien: op.bien,
                     op_problemas: op.problemas,
@@ -400,6 +499,7 @@ impl Estado {
             ui.set_actual(j);
         }
         self.mostrar_bajadas(ui);
+        self.amano_lista(ui);
     }
 
     fn refrescar(&self, ui: &AppWindow) {
@@ -428,8 +528,10 @@ impl Estado {
         ui.set_biblioteca(ModelRc::new(VecModel::from(biblioteca)));
         ui.set_orden_biblioteca(self.orden_biblioteca);
         ui.set_lateral(ModelRc::new(VecModel::from(lateral)));
-        ui.set_total_catalogo(self.juegos.len() as i32);
-        ui.set_instalables(self.juegos.iter().filter(|(_, j)| j.proyectos.iter().any(|p| p.instalable)).count() as i32);
+        // Lo añadido a mano que no está en el catálogo no cuenta como catálogo.
+        let del_catalogo = || self.juegos.iter().filter(|(c, _)| c != catalogo::CONSOLA_A_MANO);
+        ui.set_total_catalogo(del_catalogo().count() as i32);
+        ui.set_instalables(del_catalogo().filter(|(_, j)| j.proyectos.iter().any(|p| p.instalable)).count() as i32);
         explorar::mostrar(self, ui);
     }
 
@@ -528,8 +630,48 @@ impl Estado {
         }
     }
 
-    /// «Actualizar a …»: la versión nueva se baja en Descargas, como una instalación.
-    fn actualizar(&mut self, ui: &AppWindow, entry: &str) {
+    /// «Ver las versiones publicadas»: se piden a GitHub en un hilo.
+    fn pedir_versiones(&mut self, ui: &AppWindow, entry: &str) {
+        let Some(receta) = self.proyecto(entry).and_then(|(_, p)| p.receta.clone()) else { return };
+        self.versiones_pidiendo.insert(entry.to_string());
+        self.reconstruir(ui);
+        trabajo::pedir_versiones(entry.to_string(), receta);
+    }
+
+    /// «Instalar» (o «Instalar esta», con `version`): se baja en Descargas.
+    fn instalar(&mut self, ui: &AppWindow, entry: &str, version: Option<String>) {
+        let Some((j, p)) = self.proyecto(entry) else { return };
+        if self.bajadas.iter().any(|b| b.entry == p.e.entry && b.activa()) {
+            return;
+        }
+        let Some(receta) = p.receta.clone() else { return };
+        let (juego, nombre) = (j.id.clone(), p.nombre());
+        let Some(cola) = &self.cola else { return };
+        if cola.send(Tarea::Juego(entry.to_string(), receta, version)).is_err() {
+            aviso(ui, codigo::COLA_NO_RESPONDE, "", &errores::Datos::default());
+            return;
+        }
+        self.bajadas.push(Bajada {
+            entry: entry.to_string(),
+            juego,
+            proyecto: nombre,
+            version: String::new(),
+            bajado: None,
+            total: None,
+            error: errores::Datos::default(),
+            progreso: -1.0,
+            fase: 0,
+            es_mod: false,
+            autor: String::new(),
+            actualiza: false,
+        });
+        aviso(ui, codigo::EN_DESCARGAS, "", &errores::Datos::default());
+        self.reconstruir(ui);
+    }
+
+    /// «Actualizar a …» (o «Cambiar a esta», con `version`): la versión se baja en Descargas,
+    /// como una instalación, y la de antes queda guardada.
+    fn actualizar(&mut self, ui: &AppWindow, entry: &str, version: Option<String>) {
         let Some((j, p)) = self.proyecto(entry) else { return };
         if p.instalado.is_none() || self.bajadas.iter().any(|b| b.entry == entry && b.activa()) {
             return;
@@ -538,7 +680,7 @@ impl Estado {
         let (juego, nombre) = (j.id.clone(), p.nombre());
         let mods = self.ctx_mods(entry).map(Box::new);
         let Some(cola) = &self.cola else { return };
-        if cola.send(Tarea::Actualizar { entry: entry.to_string(), receta, mods }).is_err() {
+        if cola.send(Tarea::Actualizar { entry: entry.to_string(), receta, mods, version }).is_err() {
             aviso(ui, codigo::COLA_NO_RESPONDE, "", &errores::Datos::default());
             return;
         }
@@ -600,17 +742,69 @@ impl Estado {
         ui.set_en_cola(self.bajadas.iter().filter(|b| b.fase == 0).count() as i32);
     }
 
+    /// «Tus copias»: busca en `carpeta` las copias de lo instalado y de lo que se puede instalar
+    /// aquí (como `unricopie copies`). Lo que hace «Buscar en una carpeta…» después de elegirla.
+    fn empezar_copias(&mut self, ui: &AppWindow, carpeta: PathBuf) {
+        let Some(bib) = self.biblioteca.clone() else { return };
+        let recetas: Vec<_> = self
+            .catalogo
+            .iter()
+            .flat_map(|j| &j.proyectos)
+            .filter(|p| p.instalado.is_some() || p.instalable())
+            .filter_map(|p| p.receta.clone())
+            .collect();
+        self.copias_cortar = Arc::new(AtomicBool::new(false));
+        self.copias_halladas.clear();
+        ui.set_copias(ModelRc::new(VecModel::from(Vec::<CopiaHallada>::new())));
+        ui.set_copias_carpeta(carpeta.display().to_string().into());
+        ui.set_copias_sub(0);
+        ui.set_copias_fase(1);
+        copias::buscar(bib, recetas, carpeta, self.copias_cortar.clone());
+    }
+
+    /// «Guardar N copias»: las marcadas de la lista.
+    fn guardar_copias(&mut self, ui: &AppWindow) {
+        let Some(bib) = self.biblioteca.clone() else { return };
+        let filas = ui.get_copias();
+        let elegidas: Vec<Match> = self
+            .copias_halladas
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| filas.row_data(*i).is_some_and(|f| f.elegida))
+            .map(|(_, m)| m.clone())
+            .collect();
+        if elegidas.is_empty() {
+            return;
+        }
+        self.copias_cortar = Arc::new(AtomicBool::new(false));
+        ui.set_copias_hechos(0);
+        ui.set_copias_total(elegidas.len() as i32);
+        ui.set_copias_fase(3);
+        copias::guardar(bib, self.copias_buscadas.clone(), elegidas, self.copias_cortar.clone());
+    }
+
+    /// Una copia encontrada, para la lista de «Tus copias»: con el nombre del juego y del proyecto.
+    fn fila_copia(&self, m: &Match) -> CopiaHallada {
+        let (juego, proyecto) = match self.proyecto(&m.entry) {
+            Some((j, p)) => (j.primero().nombre.clone(), p.nombre()),
+            None => (m.entry.clone(), String::new()),
+        };
+        CopiaHallada {
+            juego: juego.into(),
+            proyecto: proyecto.into(),
+            aceptada: m.accepted.as_str().into(),
+            ruta: m.path.display().to_string().into(),
+            tam: tam(m.size, &self.idioma).into(),
+            elegida: true,
+            resultado: 0,
+            error: ErrorUi::default(),
+        }
+    }
+
     /// De qué juego son los mods del proyecto `entry`, si su receta tiene mods.
     fn ctx_mods(&self, entry: &str) -> Option<mods::Ctx> {
         let (_, p) = self.proyecto(entry)?;
-        let receta = p.receta.as_ref()?;
-        let regla = receta.mods.clone()?;
-        let raiz = self.raiz.clone()?;
-        let (clave, destino) = match &p.instalado {
-            Some((dir, recibo)) => (dir.file_name()?.to_string_lossy().into_owned(), unricopie_nucleo::mods::game::target(receta, recibo, dir)),
-            None => (self.biblioteca.as_ref()?.game_dir(receta, None).file_name()?.to_string_lossy().into_owned(), None),
-        };
-        Some(mods::Ctx { clave, entry: entry.to_string(), raiz, regla, destino })
+        mods::Ctx::de(self.raiz.as_deref()?, self.biblioteca.as_ref()?, entry, p.receta.as_ref()?, p.instalado.as_ref())
     }
 
     /// La pestaña Mods de `entry`: pide cómo están sus mods y la lista de su comunidad.
@@ -1060,8 +1254,64 @@ pub fn recibir(a: Aviso) {
             // Para probar sin clics: `UNRICOPIE_PRUEBA_ACTUALIZAR=<ficha>` la actualiza una vez.
             static PRUEBA_ACT: std::sync::Once = std::sync::Once::new();
             if let Ok(entry) = std::env::var("UNRICOPIE_PRUEBA_ACTUALIZAR") {
-                PRUEBA_ACT.call_once(|| st.actualizar(ui, &entry));
+                PRUEBA_ACT.call_once(|| st.actualizar(ui, &entry, None));
             }
+        }
+        Aviso::CopiasAvance(a) => {
+            ui.set_copias_sub(a.fase);
+            ui.set_copias_hechos(a.hechos as i32);
+            ui.set_copias_total(a.total as i32);
+            ui.set_copias_bytes(tam(a.bytes, &st.idioma).into());
+            ui.set_copias_bytes_total(tam(a.bytes_total, &st.idioma).into());
+        }
+        Aviso::CopiasHalladas { buscadas, resultado } => match resultado {
+            Err(e) => {
+                ui.set_copias_error(error_ui(&errores::de(&e)));
+                ui.set_copias_fase(6);
+            }
+            Ok(visto) if visto.cancelled => ui.set_copias_fase(5),
+            Ok(visto) => {
+                let filas: Vec<CopiaHallada> = visto.matches.iter().map(|m| st.fila_copia(m)).collect();
+                let cuenta = |f: fn(&Why) -> bool| visto.skipped.iter().filter(|x| f(&x.why)).count() as i32;
+                ui.set_copias_ya_guardadas(cuenta(|w| matches!(w, Why::AlreadyImported(_))));
+                ui.set_copias_carpeta_entera(cuenta(|w| matches!(w, Why::Folder)));
+                ui.set_copias_sin_hashes(cuenta(|w| matches!(w, Why::NoHashes | Why::ListUnavailable(_))));
+                ui.set_copias_elegidas(filas.len() as i32);
+                ui.set_copias(ModelRc::new(VecModel::from(filas)));
+                st.copias_buscadas = buscadas;
+                st.copias_halladas = visto.matches;
+                ui.set_copias_fase(2);
+                // Para probar sin clics: `UNRICOPIE_PRUEBA_GUARDAR_COPIAS=1` guarda lo encontrado.
+                if std::env::var_os("UNRICOPIE_PRUEBA_GUARDAR_COPIAS").is_some() {
+                    st.guardar_copias(ui);
+                }
+            }
+        },
+        Aviso::CopiasGuardadas(hecho) => {
+            let filas = ui.get_copias();
+            for r in &hecho.results {
+                let Some(i) = st.copias_halladas.iter().position(|m| m.entry == r.found.entry && m.path == r.found.path) else { continue };
+                let Some(mut f) = filas.row_data(i) else { continue };
+                f.resultado = match &r.outcome {
+                    Outcome::Imported(_) => 1,
+                    Outcome::AlreadyImported => 2,
+                    Outcome::Duplicate => 3,
+                    Outcome::Failed(e) => {
+                        f.error = error_ui(&errores::de(e));
+                        4
+                    }
+                };
+                filas.set_row_data(i, f);
+            }
+            ui.set_copias_fase(if hecho.cancelled { 5 } else { 4 });
+        }
+        Aviso::AManoVersiones { repo, releases } => st.amano_versiones(ui, &repo, releases),
+        Aviso::AManoAvance { bajado, total } => st.amano_avance(ui, bajado, total),
+        Aviso::AManoHecho(hecho) => st.amano_hecho(ui, hecho),
+        Aviso::Versiones { entry, lista } => {
+            st.versiones_pidiendo.remove(&entry);
+            st.versiones_gh.insert(entry, lista);
+            st.reconstruir(ui);
         }
         Aviso::Readme { id, que, md } => {
             let f = ui.global::<FichaMod>();
@@ -1308,7 +1558,7 @@ fn mostrar_catalogo(ui: &AppWindow, leido: Result<(Vec<catalogo::Juego>, Vec<Str
                 eprintln!("receta que no se puede leer: {m}");
             }
             ui.set_catalogo(0);
-            ui.set_catalogo_proyectos(js.iter().map(|j| j.proyectos.len()).sum::<usize>() as i32);
+            ui.set_catalogo_proyectos(js.iter().flat_map(|j| &j.proyectos).filter(|p| p.e.consola != catalogo::CONSOLA_A_MANO).count() as i32);
             ui.set_catalogo_ok(malas.is_empty());
             js
         }
@@ -1321,6 +1571,10 @@ fn mostrar_catalogo(ui: &AppWindow, leido: Result<(Vec<catalogo::Juego>, Vec<Str
 }
 
 fn main() -> Result<(), slint::PlatformError> {
+    // Con argumentos es la línea de órdenes (`unricopie launch <id>`…): no se abre la ventana.
+    if let Some(codigo) = cli::principal() {
+        std::process::exit(codigo);
+    }
     let ui = AppWindow::new()?;
 
     // Las portadas de las cajas, a demanda (ver CachePortadas).
@@ -1386,12 +1640,31 @@ fn main() -> Result<(), slint::PlatformError> {
             tiempos: root.as_ref().map(|r| tiempo::leer(&r.path)).unwrap_or_default(),
             ficha_mod: None,
             cambiando: None,
+            copias_buscadas: Vec::new(),
+            copias_halladas: Vec::new(),
+            copias_cortar: Arc::new(AtomicBool::new(false)),
+            versiones_gh: HashMap::new(),
+            versiones_pidiendo: HashSet::new(),
+            amano: None,
         })
     });
     con_estado(|st, ui| st.cambiar_idioma(ui, &idioma));
     con_estado(|st, _| st.pedir_listas());
     trabajo::leer_opiniones();
     con_estado(|st, _| st.buscar_ultimas());
+    // Para probar sin clics: `UNRICOPIE_PRUEBA_VERSIONES=<ficha>` pide sus versiones publicadas.
+    if let Ok(e) = std::env::var("UNRICOPIE_PRUEBA_VERSIONES") {
+        con_estado(|st, ui| st.pedir_versiones(ui, &e));
+    }
+    // Para probar sin clics: `UNRICOPIE_PRUEBA_COPIAS=<carpeta>` busca ahí las copias, como
+    // «Buscar en una carpeta…» en Ajustes.
+    if let Some(c) = std::env::var_os("UNRICOPIE_PRUEBA_COPIAS") {
+        con_estado(|st, ui| st.empezar_copias(ui, PathBuf::from(c)));
+    }
+    // Para probar sin clics: `UNRICOPIE_PRUEBA_AMANO=<repo>` lo busca, como «Buscar» en Ajustes.
+    if let Ok(repo) = std::env::var("UNRICOPIE_PRUEBA_AMANO") {
+        con_estado(|st, ui| st.amano_buscar(ui, &repo));
+    }
     // Para probar sin clics: `UNRICOPIE_PRUEBA_VOLVER=<ficha>` vuelve a su versión anterior más
     // reciente. Lo pide dos veces seguidas, como un doble clic: tiene que cambiar una sola vez.
     if let Ok(entry) = std::env::var("UNRICOPIE_PRUEBA_VOLVER") {
@@ -1434,38 +1707,20 @@ fn main() -> Result<(), slint::PlatformError> {
             trabajo::opinar(j.primero().nombre.clone(), entry.to_string(), r.version.clone(), resultado);
         })
     });
-    ui.on_instalar(|entry| {
+    ui.on_instalar(|entry| con_estado(|st, ui| st.instalar(ui, &entry, None)));
+    ui.on_actualizar(|entry| con_estado(|st, ui| st.actualizar(ui, &entry, None)));
+    // Versiones: pedir a GitHub las publicadas, e instalar o pasar a una de ellas.
+    ui.on_ver_versiones(|entry| con_estado(|st, ui| st.pedir_versiones(ui, &entry)));
+    ui.on_instalar_version(|entry, tag| {
         con_estado(|st, ui| {
-            let Some((j, p)) = st.proyecto(&entry) else { return };
-            if st.bajadas.iter().any(|b| b.entry == p.e.entry && b.activa()) {
-                return;
+            let instalado = st.proyecto(&entry).is_some_and(|(_, p)| p.instalado.is_some());
+            if instalado {
+                st.actualizar(ui, &entry, Some(tag.to_string()));
+            } else {
+                st.instalar(ui, &entry, Some(tag.to_string()));
             }
-            let Some(receta) = p.receta.clone() else { return };
-            let (juego, nombre) = (j.id.clone(), p.nombre());
-            let Some(cola) = &st.cola else { return };
-            if cola.send(Tarea::Juego(entry.to_string(), receta)).is_err() {
-                aviso(ui, codigo::COLA_NO_RESPONDE, "", &errores::Datos::default());
-                return;
-            }
-            st.bajadas.push(Bajada {
-                entry: entry.to_string(),
-                juego,
-                proyecto: nombre,
-                version: String::new(),
-                bajado: None,
-                total: None,
-                error: errores::Datos::default(),
-                progreso: -1.0,
-                fase: 0,
-                es_mod: false,
-                autor: String::new(),
-                actualiza: false,
-            });
-            aviso(ui, codigo::EN_DESCARGAS, "", &errores::Datos::default());
-            st.reconstruir(ui);
         })
     });
-    ui.on_actualizar(|entry| con_estado(|st, ui| st.actualizar(ui, &entry)));
     ui.on_abrir_mods(|| con_estado(|st, ui| st.mostrar_pagina_mods(ui, None)));
     ui.on_ir_mods(|entry| {
         con_estado(|st, ui| {
@@ -1520,6 +1775,33 @@ fn main() -> Result<(), slint::PlatformError> {
             trabajo::guardar_copia(bib, receta, origen);
         }
     });
+
+    // «Tus copias», en Ajustes: buscar en una carpeta. El diálogo se abre fuera de `con_estado`,
+    // como el de la copia de un juego.
+    ui.on_buscar_copias(|| {
+        let mut titulo = "";
+        con_estado(|st, _| titulo = if st.idioma == "en" { "Folder with your copies of the games" } else { "Carpeta con tus copias de los juegos" });
+        if let Some(carpeta) = rfd::FileDialog::new().set_title(titulo).pick_folder() {
+            con_estado(|st, ui| st.empezar_copias(ui, carpeta));
+        }
+    });
+    ui.on_cancelar_copias(|| con_estado(|st, _| st.copias_cortar.store(true, Ordering::Relaxed)));
+    ui.on_marcar_copia(|i, on| {
+        con_estado(|_, ui| {
+            let filas = ui.get_copias();
+            if let Some(mut f) = filas.row_data(i as usize) {
+                f.elegida = on;
+                filas.set_row_data(i as usize, f);
+            }
+            ui.set_copias_elegidas(filas.iter().filter(|f| f.elegida).count() as i32);
+        })
+    });
+    ui.on_guardar_copias(|| con_estado(|st, ui| st.guardar_copias(ui)));
+    // «Añadir un proyecto de GitHub», en Ajustes (`amano.rs`).
+    ui.on_amano_buscar(|texto| con_estado(|st, ui| st.amano_buscar(ui, &texto)));
+    ui.on_amano_elegir(|elegido| con_estado(|st, ui| st.amano_elegir(ui, &elegido)));
+    ui.on_amano_instalar(|| con_estado(|st, ui| st.amano_instalar(ui)));
+    ui.on_amano_quitar(|entry| con_estado(|st, ui| st.amano_quitar(ui, &entry)));
 
     // La pestaña Mods.
     ui.global::<ModsUi>().on_ver(|entry| con_estado(|st, ui| st.ver_mods(ui, &entry)));

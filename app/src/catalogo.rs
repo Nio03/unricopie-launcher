@@ -4,12 +4,19 @@
 //! Sale del catálogo público de Recompendium y de las recetas, que se bajan aparte
 //! (`datos.rs`). Para probar, `UNRICOPIE_CATALOGO` apunta a un archivo con las dos cosas juntas.
 //! Las fichas sin receta también se muestran: Unricopie no las instala y lleva a su proyecto.
+//!
+//! A eso se suma lo que la persona añadió a mano desde GitHub (`poner_a_mano`): las recetas de
+//! `<biblioteca>/added.json`, que entran como un juego más o en la ficha del catálogo de ese repo.
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
-use unricopie_nucleo::install::recipe::{CopyHow, CopyKind};
-use unricopie_nucleo::install::{copy, Library, Platform, Receipt, Recipe};
+use unricopie_nucleo::install::recipe::{CopyHow, CopyKind, CopyUse};
+use unricopie_nucleo::install::{added, copy, Library, Platform, Receipt, Recipe};
+
+/// La «consola» (la clave de los filtros) de lo añadido a mano que no está en el catálogo: con
+/// ella Explorar, que es el catálogo, lo deja fuera.
+pub const CONSOLA_A_MANO: &str = "a-mano";
 
 /// Un texto de la ficha en los dos idiomas del sitio.
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -82,6 +89,9 @@ pub struct Entrada {
     pub fecha: String,
     #[serde(default)]
     pub estrellas: u32,
+    /// Su receta no es del catálogo: la añadió la persona a mano desde GitHub (`poner_a_mano`).
+    #[serde(default)]
+    pub a_mano: bool,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -128,11 +138,13 @@ impl Proyecto {
         }
     }
 
-    /// El estado de la ficha como nivel: 0 totalmente jugable, 1 jugable, 2 experimental.
+    /// El estado de la ficha como nivel: 0 totalmente jugable, 1 jugable, 2 experimental. Lo
+    /// añadido a mano que no tiene ficha en el catálogo no tiene estado: 3, sin revisar.
     pub fn nivel(&self) -> i32 {
         match self.e.estado.as_str() {
             "fully" => 0,
             "playable" => 1,
+            "" if self.e.consola == CONSOLA_A_MANO => 3,
             _ => 2,
         }
     }
@@ -168,6 +180,18 @@ impl Proyecto {
         EstadoCopia { codigo, nombre, falta }
     }
 
+    /// Para qué usa el juego la copia (los mismos códigos que `Proyecto.copia-uso`): -1 sin
+    /// receta, 0 no hace falta, 1 la pide su instalador, 2 solo la primera vez, 3 cada vez.
+    pub fn uso_copia(&self, portable: bool) -> i32 {
+        let (Some(receta), Some(plataforma)) = (&self.receta, Platform::current()) else { return -1 };
+        match receta.copy.usage(plataforma, portable) {
+            CopyUse::None => 0,
+            CopyUse::Installer => 1,
+            CopyUse::Once => 2,
+            CopyUse::Always => 3,
+        }
+    }
+
     /// La receta dice qué bajar y qué abrir en este equipo.
     pub fn instalable(&self) -> bool {
         let Some(receta) = &self.receta else { return false };
@@ -200,7 +224,11 @@ pub fn leer_archivo(archivo: &Path, biblioteca: &Library) -> Result<(Vec<Juego>,
 
 /// Junta las fichas por juego. Una receta que no se puede leer deja la ficha sin instalar y se
 /// cuenta (es un error nuestro, no del jugador).
-pub fn juntar(entradas: Vec<Entrada>, biblioteca: &Library) -> (Vec<Juego>, Vec<String>) {
+pub fn juntar(mut entradas: Vec<Entrada>, biblioteca: &Library) -> (Vec<Juego>, Vec<String>) {
+    match added::load(biblioteca) {
+        Ok(a_mano) => poner_a_mano(&mut entradas, a_mano),
+        Err(e) => eprintln!("no se pudieron leer los proyectos añadidos a mano: {e}"),
+    }
     let instalados = recibos(biblioteca);
     let mut malas = Vec::new();
     let mut por_juego: BTreeMap<String, Vec<Proyecto>> = BTreeMap::new();
@@ -227,6 +255,53 @@ pub fn juntar(entradas: Vec<Entrada>, biblioteca: &Library) -> (Vec<Juego>, Vec<
         .collect();
     juegos.sort_by_key(|j| orden(&j.primero().nombre));
     (juegos, malas)
+}
+
+/// Suma al catálogo las recetas añadidas a mano. La que es de una ficha del catálogo (el repo
+/// estaba, pero sin receta) pasa a ser la receta de esa ficha, con su portada y sus datos; las
+/// demás entran como un juego más, con el nombre del repo. Manda siempre el catálogo: si la
+/// ficha ya tiene receta (llegó después de añadirla) o está retirada, la añadida a mano no cuenta.
+pub fn poner_a_mano(entradas: &mut Vec<Entrada>, a_mano: Vec<Recipe>) {
+    for receta in a_mano {
+        let Ok(valor) = serde_json::to_value(&receta) else { continue };
+        if let Some(e) = entradas.iter_mut().find(|e| e.entry == receta.entry) {
+            if e.receta.is_none() && !e.retirado {
+                e.receta = Some(valor);
+                e.a_mano = true;
+            }
+            continue;
+        }
+        let nombre = added::repo_name(&receta.repo);
+        let nueva = serde_json::json!({
+            "entry": receta.entry,
+            "juego": null,
+            "nombre": nombre,
+            "proyecto": nombre,
+            "repo": receta.repo,
+            "consola": CONSOLA_A_MANO,
+            "consola_nombre": "GitHub",
+            "color": "#6e5494",
+            "tinta": "#ffffff",
+            "autor": receta.repo.split('/').next().unwrap_or_default(),
+            "desc": {
+                "es": "Lo añadiste a mano desde GitHub. No está en el catálogo: Unricopie no lo revisó, no sabe qué necesita y no puede comprobar tu copia del juego.",
+                "en": "You added it by hand from GitHub. It isn't in the catalog: Unricopie hasn't reviewed it, doesn't know what it needs and can't check your copy of the game.",
+            },
+            "a_mano": true,
+            "receta": valor,
+        });
+        match serde_json::from_value(nueva) {
+            Ok(e) => entradas.push(e),
+            Err(e) => eprintln!("no se pudo mostrar {}: {e}", receta.entry),
+        }
+    }
+}
+
+/// Las fichas del catálogo que son del repo `repo`, por lo que dice la ficha o por lo que dice
+/// su receta, que es de donde se baja (GitHub no distingue mayúsculas).
+pub fn del_repo<'a>(juegos: &'a [Juego], repo: &str) -> Vec<&'a Proyecto> {
+    let es = |r: &str| r.eq_ignore_ascii_case(repo);
+    juegos.iter().flat_map(|j| &j.proyectos).filter(|p| es(&p.e.repo) || p.receta.as_ref().is_some_and(|r| es(&r.repo))).collect()
 }
 
 /// Vuelve a leer los recibos, después de instalar o desinstalar.

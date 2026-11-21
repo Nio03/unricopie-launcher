@@ -14,7 +14,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use slint::{ModelRc, VecModel};
 use unricopie_nucleo::install::recipe::ModsRule;
-use unricopie_nucleo::install::{update, Library, Plan};
+use unricopie_nucleo::install::{update, Library, Plan, Receipt, Recipe};
 use unricopie_nucleo::net::Downloaded;
 use unricopie_nucleo::mods::game::{self, GameMods, Profiles, Target};
 use unricopie_nucleo::mods::model::lenient_version;
@@ -40,6 +40,16 @@ pub struct Ctx {
 }
 
 impl Ctx {
+    /// El de un proyecto con su receta, si admite mods. `instalado`: su carpeta y su recibo.
+    pub fn de(raiz: &Path, biblioteca: &Library, entry: &str, receta: &Recipe, instalado: Option<&(PathBuf, Receipt)>) -> Option<Ctx> {
+        let regla = receta.mods.clone()?;
+        let (clave, destino) = match instalado {
+            Some((dir, recibo)) => (dir.file_name()?.to_string_lossy().into_owned(), game::target(receta, recibo, dir)),
+            None => (biblioteca.game_dir(receta, None).file_name()?.to_string_lossy().into_owned(), None),
+        };
+        Some(Ctx { clave, entry: entry.to_string(), raiz: raiz.to_path_buf(), regla, destino })
+    }
+
     fn gm(&self) -> GameMods {
         GameMods::new(&self.raiz, &self.clave, &self.entry)
     }
@@ -209,12 +219,7 @@ fn hacer_orden(o: Orden, adoptados: usize) -> (Ctx, Result<(), Error>, usize) {
         // Actualizar o volver atrás cambian la carpeta del juego entera: antes se quitan los mods
         // (`update.rs` lo pide) y después se vuelven a poner, salga bien o mal.
         Orden::Actualizar { ctx, biblioteca, plan, archivo, bajado, entry } => {
-            let r = ctx.gm().purge().and_then(|_| update::update_downloaded(&biblioteca, &plan, &archivo, &bajado).map(|_| ()));
-            let _ = fs::remove_file(&archivo);
-            let r = match r {
-                Err(Error::UpToDate(_)) => Ok(()),
-                r => r,
-            };
+            let r = cambiar_version(&ctx, &biblioteca, &plan, &archivo, &bajado);
             match &r {
                 Ok(()) => avisar(Aviso::Instalado { entry, error: None }),
                 Err(e) => avisar(Aviso::Fallo { entry, error: errores::de(e) }),
@@ -327,7 +332,20 @@ fn cambiar(ctx: &Ctx, f: impl FnOnce(&mut Profiles)) -> Result<(), Error> {
     aplicar(ctx)
 }
 
-fn aplicar(ctx: &Ctx) -> Result<(), Error> {
+/// Cambia un juego con mods a la versión ya bajada: antes quita los mods (`update.rs` lo pide)
+/// y borra lo bajado. Después hay que volver a ponerlos con `aplicar`, salga bien o mal. Lo
+/// usan el hilo de los mods y `unricopie update`.
+pub fn cambiar_version(ctx: &Ctx, biblioteca: &Library, plan: &Plan, archivo: &Path, bajado: &Downloaded) -> Result<(), Error> {
+    let r = ctx.gm().purge().and_then(|_| update::update_downloaded(biblioteca, plan, archivo, bajado).map(|_| ()));
+    let _ = fs::remove_file(archivo);
+    match r {
+        Err(Error::UpToDate(_)) => Ok(()),
+        r => r,
+    }
+}
+
+/// Pone en el juego los mods activos, si está instalado.
+pub fn aplicar(ctx: &Ctx) -> Result<(), Error> {
     if let Some(t) = &ctx.destino {
         ctx.gm().apply(&ctx.regla, t)?;
     }
